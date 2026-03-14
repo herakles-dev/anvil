@@ -4,6 +4,7 @@
 
 You draft in the browser with your evidence at your fingertips. Your LLM refines the same markdown files from the terminal. Status tracking keeps you honest about what's human-written vs AI-refined.
 
+![Tests](https://github.com/herakles-dev/anvil/actions/workflows/test.yml/badge.svg)
 ![Stack](https://img.shields.io/badge/stack-Flask%20%2B%20Vanilla%20JS%20%2B%20SQLite-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Docker](https://img.shields.io/badge/runs%20in-Docker-2496ED)
