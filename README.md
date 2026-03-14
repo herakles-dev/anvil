@@ -32,39 +32,34 @@ The example application (`acme-corp`) loads automatically so you can explore the
 
 ## Setting Up Your Own Applications
 
-### Option 1: Use your CLI-based LLM
+### Option 1: Use your CLI-based LLM (recommended)
 
-Paste this prompt into Claude Code, Cursor, or any CLI-based LLM running in the `anvil/` directory:
+Paste this prompt into Claude Code, Cursor, or any CLI-based LLM running in the `anvil/` directory. It will interview you and build everything out:
 
-```
-I want to set up Anvil for my application to [COMPANY/PROGRAM NAME].
+````
+I want to set up Anvil for my applications. Read CLAUDE.md (especially the
+"Full Setup Guide for LLM Assistants" section) and follow the setup protocol.
 
-Read CLAUDE.md to understand how Anvil works, then:
+Interview me to gather what you need, then build out my complete workspace:
+- Evidence base from my background and projects
+- Company directories with real application materials
+- Form fields configured for the specific portal I'm applying to
+- Resume HTML built from my experience
+- Cheat sheets with my actual evidence mapped to each field
 
-1. Create a new company directory at example/applications/[slug]/ with:
-   - meta.json (company name, role, status, deadline, apply URL)
-   - cover_letter.md (template with my details)
-   - talking_points.md (interview prep structure)
-   - project_highlights.md (my key projects)
+Here's my starting context:
+- I'm applying to: [COMPANY/PROGRAM — or "multiple, let's discuss"]
+- My background: [2-3 sentences about your career/expertise]
+- My key projects: [list your top 3-5 projects]
+- Deadline: [date, or "not sure yet"]
+````
 
-2. If this application has specific form fields, create a constellation/
-   subdirectory with one .md file per field. Then update fields.json with
-   the field labels, guidance, word limits, and cheat sheet tips.
-
-3. If I have research/evidence files, set up the evidence directory and
-   update docker-compose.yml to mount it.
-
-4. Rebuild: docker compose up -d --build
-
-Here's what I know about the application:
-- Company/Program: [name]
-- Role: [title]
-- Deadline: [date]
-- Application fields: [list the form fields if known]
-- My background: [brief summary so you can populate templates]
-```
+The LLM will ask follow-up questions about your experience, research the application requirements, then build out your complete workspace — not just skeleton files.
 
 ### Option 2: Manual setup
+
+<details>
+<summary>Click to expand manual setup instructions</summary>
 
 1. **Create a company directory:**
    ```
@@ -102,6 +97,8 @@ Here's what I know about the application:
    ```bash
    docker compose up -d --build
    ```
+
+</details>
 
 ## How the CLI Workflow Works
 
