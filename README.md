@@ -1,0 +1,219 @@
+# Anvil
+
+**Application writing forge** — a guided writing environment for fellowships, grants, and job applications, designed for use alongside a CLI-based LLM.
+
+You draft in the browser with your evidence at your fingertips. Your LLM refines the same markdown files from the terminal. Status tracking keeps you honest about what's human-written vs AI-refined.
+
+![Stack](https://img.shields.io/badge/stack-Flask%20%2B%20Vanilla%20JS%20%2B%20SQLite-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Docker](https://img.shields.io/badge/runs%20in-Docker-2496ED)
+
+## Features
+
+- **Block-level editing** — hover any paragraph to edit inline or leave review notes
+- **Constellation mode** — guided form-field writing with word counters, tips, and field guides (auto-activates when a `constellation/` directory exists)
+- **Evidence sidebar** — search your research files while drafting (Ctrl+E)
+- **Status tracking** — `not_started → first_draft → human_written → ai_refined → final` per field
+- **Resume editor** — split-pane HTML editor with live preview + PDF export via headless Chromium
+- **Export** — copy-paste-ready text for application portals, or email to yourself
+- **CLI-friendly** — all data is plain markdown on disk + a REST API for automation
+- **Auto-backups** — every save creates a timestamped backup
+
+## Quick Start
+
+```bash
+git clone https://github.com/herakles-dev/anvil.git
+cd anvil
+docker compose up -d
+# Open http://localhost:8135
+```
+
+The example application (`acme-corp`) loads automatically so you can explore the UI.
+
+## Setting Up Your Own Applications
+
+### Option 1: Use your CLI-based LLM
+
+Paste this prompt into Claude Code, Cursor, or any CLI-based LLM running in the `anvil/` directory:
+
+```
+I want to set up Anvil for my application to [COMPANY/PROGRAM NAME].
+
+Read CLAUDE.md to understand how Anvil works, then:
+
+1. Create a new company directory at example/applications/[slug]/ with:
+   - meta.json (company name, role, status, deadline, apply URL)
+   - cover_letter.md (template with my details)
+   - talking_points.md (interview prep structure)
+   - project_highlights.md (my key projects)
+
+2. If this application has specific form fields, create a constellation/
+   subdirectory with one .md file per field. Then update fields.json with
+   the field labels, guidance, word limits, and cheat sheet tips.
+
+3. If I have research/evidence files, set up the evidence directory and
+   update docker-compose.yml to mount it.
+
+4. Rebuild: docker compose up -d --build
+
+Here's what I know about the application:
+- Company/Program: [name]
+- Role: [title]
+- Deadline: [date]
+- Application fields: [list the form fields if known]
+- My background: [brief summary so you can populate templates]
+```
+
+### Option 2: Manual setup
+
+1. **Create a company directory:**
+   ```
+   example/applications/your-company/
+   ├── meta.json
+   ├── cover_letter.md
+   ├── talking_points.md
+   └── project_highlights.md
+   ```
+
+2. **Add form fields** (optional — activates guided mode):
+   ```
+   example/applications/your-company/constellation/
+   ├── why_interested.md
+   ├── relevant_background.md
+   └── anything_else.md
+   ```
+   Then edit `fields.json` to configure labels, word limits, and tips for each field.
+
+3. **Add evidence files** (optional — populates the sidebar):
+   ```
+   example/evidence/
+   ├── platform-stats.md
+   ├── project-portfolio.md
+   └── research-notes.md
+   ```
+
+4. **Add a resume** (optional — enables the HTML editor + PDF export):
+   ```
+   example/applications/your-company/resume/
+   └── resume.html
+   ```
+
+5. **Rebuild:**
+   ```bash
+   docker compose up -d --build
+   ```
+
+## How the CLI Workflow Works
+
+```
+┌─────────────────────┐     ┌──────────────┐     ┌─────────────────────┐
+│   You (browser)     │     │  .md files   │     │   LLM (terminal)    │
+│                     │────▶│  on disk     │◀────│                     │
+│ - Draft text        │     │              │     │ - Refine prose      │
+│ - Leave notes       │     │ Single source│     │ - Fix word counts   │
+│ - Track status      │     │ of truth     │     │ - Process notes     │
+│ - Search evidence   │     │              │     │ - Research evidence │
+└─────────────────────┘     └──────────────┘     └─────────────────────┘
+```
+
+1. **You** write first drafts in the browser (guided mode shows word targets and tips)
+2. Mark fields as `human_written` when your draft is done
+3. **Your LLM** reads the files, refines the prose, fixes word counts
+4. You review in the browser, mark as `ai_refined`
+5. Final review → mark as `final` → export for the portal
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` | Save current document |
+| `Ctrl+E` | Toggle evidence sidebar |
+| `Ctrl+Shift+C` | Toggle cheat sheet / tips |
+| `Ctrl+Shift+X` | Open export modal |
+| `Ctrl+Enter` | Save inline block edit |
+| `Esc` | Cancel inline edit |
+
+## Configuration
+
+### `fields.json`
+
+All form field configuration lives here — no code changes needed:
+
+```json
+{
+  "fields": {
+    "your_field_id": {
+      "label": "What the portal asks",
+      "guidance": "What to write about",
+      "reviewer_wants": "What reviewers look for",
+      "word_min": 100,
+      "word_max": 200,
+      "order": 1,
+      "track": "both"
+    }
+  },
+  "cheatsheet": {
+    "your_field_id": {
+      "what_to_hit": ["Key point 1", "Key point 2"],
+      "evidence_to_cite": ["evidence/file.md"],
+      "tips": ["Writing tip"]
+    }
+  }
+}
+```
+
+### `meta.json`
+
+Per-company metadata shown in the UI:
+
+```json
+{
+  "company": "Company Name",
+  "role": "Position Title",
+  "status": "PREPARING",
+  "salary_range": "$X-$Y",
+  "deadline": "2026-07-01",
+  "apply_url": "https://example.com/apply"
+}
+```
+
+### Environment Variables
+
+See `.env.example` for all options. Key ones:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `APPLICATIONS_DIR` | Where company directories live | `/data/applications` |
+| `EVIDENCE_DIR` | Research files for the sidebar | (empty) |
+| `CHROMIUM_PATH` | For resume PDF generation | `/usr/bin/chromium` |
+| `SMTP_HOST` | For "email to self" export | (disabled) |
+
+## API
+
+Anvil exposes a REST API for CLI automation. See `CLAUDE.md` for the full reference.
+
+Quick examples:
+
+```bash
+# Get all pending review notes as JSON
+curl -s http://localhost:8135/api/notes/export | python3 -m json.tool
+
+# Search your evidence
+curl -s "http://localhost:8135/api/evidence/search?q=kubernetes" | python3 -m json.tool
+
+# Export all form fields as plain text
+curl -s http://localhost:8135/api/export/acme-corp/both/plain-text | python3 -m json.tool
+```
+
+## Tech Stack
+
+- **Backend:** Flask 3.1, SQLite, Python 3.11
+- **Frontend:** Vanilla JS (no framework), CSS custom properties
+- **PDF:** Headless Chromium (installed in Docker image)
+- **Container:** Docker with gunicorn
+
+No build step. No npm. No webpack. Just files.
+
+## License
+
+MIT

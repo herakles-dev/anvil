@@ -1,0 +1,35 @@
+# Anvil — Application Writing Forge
+# 1. Copy .env.example to .env and configure
+# 2. Adjust volume mounts below to point at your directories
+# 3. docker compose up -d
+services:
+  anvil:
+    build: .
+    container_name: anvil
+    ports:
+      - "8135:5000"
+    volumes:
+      # Your application materials (each company = a subdirectory with .md files)
+      - ./example/applications:/data/applications
+      # SQLite database + backups (created automatically)
+      - ./data:/data/db
+      - ./data/backups:/data/backups
+      # Your research/evidence files for the sidebar (optional, read-only)
+      - ./example/evidence:/data/evidence:ro
+    environment:
+      - APPLICATIONS_DIR=/data/applications
+      - DB_PATH=/data/db/anvil.db
+      - BACKUP_DIR=/data/backups
+      - EVIDENCE_DIR=/data/evidence
+      - CHROMIUM_PATH=/usr/bin/chromium
+      # Optional: SMTP for "email to self" export
+      # - SMTP_HOST=smtp.example.com
+      # - SMTP_PORT=587
+      # - SMTP_USER=you@example.com
+      # - SMTP_PASS=your-app-password
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,91 @@
+{
+  "_comment": "Configure your application form fields here. Each field gets a dedicated editor with word counter, guidance callout, and status tracking. Edit this file — no code changes needed.",
+  "fields": {
+    "why_interested": {
+      "label": "Why are you interested in this program?",
+      "guidance": "Explain your motivation. Connect your background to the program goals. Show you understand what it offers and why you specifically belong here.",
+      "reviewer_wants": "Authentic motivation, specific connection to the field, evidence you understand the domain.",
+      "word_min": 150,
+      "word_max": 300,
+      "order": 1,
+      "track": "both"
+    },
+    "relevant_background": {
+      "label": "Describe your relevant background.",
+      "guidance": "Summarize your hands-on experience relevant to this role. Be specific about what you built, researched, or discovered.",
+      "reviewer_wants": "Concrete evidence of relevant work, technical depth, demonstrated capability.",
+      "word_min": 75,
+      "word_max": 150,
+      "order": 2,
+      "track": "both"
+    },
+    "excited_area": {
+      "label": "What area are you most excited about?",
+      "guidance": "Name a specific area and explain why it excites you. Reference concrete work or papers if possible.",
+      "reviewer_wants": "Technical specificity, genuine enthusiasm, awareness of current frontiers.",
+      "word_min": 75,
+      "word_max": 150,
+      "order": 3,
+      "track": "both"
+    },
+    "code_samples": {
+      "label": "Describe your code samples and what they demonstrate.",
+      "guidance": "List 2-3 code samples. For each, explain what it does and what skill it demonstrates.",
+      "reviewer_wants": "Clear descriptions, relevance to the role, code quality awareness.",
+      "word_min": 100,
+      "word_max": 200,
+      "order": 4,
+      "track": "both"
+    },
+    "commitment": {
+      "label": "What is your availability and commitment level?",
+      "guidance": "Be transparent about your availability. Disclose any other obligations.",
+      "reviewer_wants": "Transparency, ability to commit sufficient time.",
+      "word_min": 50,
+      "word_max": 100,
+      "order": 5,
+      "track": "both"
+    },
+    "anything_else": {
+      "label": "Anything else you want us to know?",
+      "guidance": "Use this for anything that doesn't fit elsewhere. Unique perspectives, unconventional background, additional context.",
+      "reviewer_wants": "Memorable differentiators, authenticity, things that make you stand out.",
+      "word_min": 100,
+      "word_max": 200,
+      "order": 6,
+      "track": "both"
+    }
+  },
+  "cheatsheet": {
+    "why_interested": {
+      "what_to_hit": ["Personal journey that led you here", "A specific turning point or moment", "The gap you want to fill"],
+      "evidence_to_cite": [],
+      "tips": ["Lead with a specific moment, not abstract motivation", "Name the gap you want to fill"]
+    },
+    "relevant_background": {
+      "what_to_hit": ["Concrete projects with measurable outcomes", "Technical depth in the relevant domain", "Breadth across related areas"],
+      "evidence_to_cite": [],
+      "tips": ["Numbers are your friend here", "Show breadth AND depth"]
+    },
+    "excited_area": {
+      "what_to_hit": ["One specific area (go deep, not wide)", "Why this area matters to you personally", "What you would work on first"],
+      "evidence_to_cite": [],
+      "tips": ["Pick ONE area and go deep", "Reference a specific paper or finding"]
+    },
+    "code_samples": {
+      "what_to_hit": ["What each sample demonstrates (not just what it does)", "Quality indicators (tests, documentation, architecture)", "Relevance to the role"],
+      "evidence_to_cite": [],
+      "tips": ["Describe what each sample DEMONSTRATES, not just what it does"]
+    },
+    "commitment": {
+      "what_to_hit": ["Clear availability statement", "Any constraints transparently disclosed"],
+      "evidence_to_cite": [],
+      "tips": ["Brief and transparent", "Show you can commit fully"]
+    },
+    "anything_else": {
+      "what_to_hit": ["What makes you unique", "Anything the form didn't ask about", "Your unconventional angle"],
+      "evidence_to_cite": [],
+      "tips": ["This is your wildcard — use it for what makes you unique"]
+    }
+  }
+}

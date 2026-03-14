@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anvil — Application Writing Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-brand">
+      <span class="brand-icon">&#9881;</span>
+      <span class="brand-text">Anvil</span>
+      <span class="brand-sep"></span>
+      <span class="brand-sub">Writing Forge</span>
+    </div>
+    <div id="tab-bar" class="tab-bar"></div>
+  </div>
+  <div class="topbar-right">
+    <div class="keyboard-hint" title="Keyboard shortcuts">
+      <kbd>Ctrl</kbd><kbd>S</kbd> save
+      <span class="hint-sep"></span>
+      <kbd>Ctrl</kbd><kbd>E</kbd> evidence
+      <span class="hint-sep"></span>
+      <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd> tips
+      <span class="hint-sep"></span>
+      <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd> export
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <span class="sidebar-section-icon">&#9776;</span>
+      Documents
+    </div>
+    <div id="sidebar-docs"></div>
+    <div class="sidebar-meta" id="sidebar-meta"></div>
+  </div>
+
+  <div class="content-wrapper">
+    <div class="content" id="content">
+      <div class="empty-state">
+        <div class="empty-icon">&#9881;</div>
+        <h2>Anvil</h2>
+        <p>Select a company tab to start drafting. Anvil gives you a writing workspace with evidence at your fingertips, word counters, and status tracking — designed for use alongside a CLI-based LLM.</p>
+        <div class="empty-hints">
+          <div class="empty-hint">
+            <span class="hint-icon">&#9998;</span>
+            <span>Write drafts in the browser, refine with your CLI assistant</span>
+          </div>
+          <div class="empty-hint">
+            <span class="hint-icon">&#128218;</span>
+            <span>Evidence panel: search your research while drafting (Ctrl+E)</span>
+          </div>
+          <div class="empty-hint">
+            <span class="hint-icon">&#11088;</span>
+            <span>Form fields mode: guided writing with word targets + tips</span>
+          </div>
+          <div class="empty-hint">
+            <span class="hint-icon">&#128203;</span>
+            <span>Export copy-paste-ready text when done (Ctrl+Shift+X)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="guidebar" id="guidebar">
+  <span class="guidebar-placeholder">Select a company to view submission details</span>
+</div>
+
+<script src="/static/review.js"></script>
+</body>
+</html>

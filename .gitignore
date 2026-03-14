@@ -1,0 +1,19 @@
+# Data (created at runtime)
+data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
