@@ -29,7 +29,7 @@ anvil/
 └── example/                # Application workspace
     ├── applications/       # One subdirectory per company/program
     │   └── {company-slug}/
-    │       ├── meta.json           # Company metadata (name, role, deadline, URL)
+    │       ├── meta.json           # Company metadata
     │       ├── cover_letter.md     # Cover letter draft
     │       ├── talking_points.md   # Interview prep + key numbers
     │       ├── project_highlights.md # Key projects with metrics
@@ -59,40 +59,57 @@ docker compose up -d
 
 ### Phase 1: Interview the User
 
-Ask these questions (skip any the user already answered):
+Ask these questions conversationally (skip any the user already answered). Don't dump all questions at once — group them naturally.
 
-**About them:**
-1. What's your full name and contact info (email, location, GitHub/portfolio URL)?
+**About them (for evidence base + resume):**
+1. What's your full name and contact info? (email, location, GitHub/portfolio URL, LinkedIn)
 2. What's your professional background in 2-3 sentences?
-3. What are your top 3-5 projects? For each: name, what it does, tech stack, key metrics (LOC, users, tests, performance numbers).
-4. Do you have a resume already? If so, where is it? (path on disk, or they can paste the content)
-5. What quantifiable claims can you make? (years of experience, languages known, systems built, users served, etc.)
+3. What are your top 3-5 projects? For each: name, what it does, tech stack, key metrics (LOC, users, tests, performance numbers, scale).
+4. Do you have an existing resume? If yes: where is it on disk? (You'll read it and convert to HTML.) If they can paste content, that works too.
+5. What quantifiable claims can you make? (years of experience, languages known, systems built, users served, contributions made, etc.)
+6. Education? (degrees, schools, relevant coursework, certifications)
+7. Publications, talks, blog posts, or open-source contributions?
+8. Languages spoken? Awards or recognition?
 
-**About the application:**
-1. What company/program are you applying to?
+**About the application (for company directory + form fields):**
+1. What company/program are you applying to? (If multiple, handle one at a time — evidence is shared.)
 2. What's the role/position title?
 3. What's the deadline?
-4. What's the application URL?
-5. Does the application have a portal with specific form fields? If so, what are they? (exact field labels and any word/character limits)
+4. What's the application URL? **If they give you a URL, use web search or web fetch to look up the actual application form fields, word limits, and requirements.** Don't guess — research the portal.
+5. Does the application have a portal with specific form fields? If so, what are they? (Exact field labels and any word/character limits. If they don't know, research it for them.)
 6. What makes you specifically suited for this role?
-7. What's your narrative arc — why are you applying to THIS, NOW?
+7. What's your narrative arc — why are you applying to THIS, NOW? (The story that connects past → present → this opportunity.)
 
 ### Phase 2: Build the Evidence Base
 
-Create `example/evidence/` files from the user's answers. These populate the searchable evidence sidebar (Ctrl+E in the UI).
+Create `example/evidence/` files from the user's answers. These populate the searchable evidence sidebar (Ctrl+E in the UI). The more evidence you build here, the more useful the sidebar is during drafting.
+
+**If the user has an existing resume on disk**, read it first — it's a goldmine of structured data (dates, titles, achievements, metrics) that seeds everything else.
+
+**If the user has a GitHub profile**, consider scanning their pinned repos for project metrics (stars, forks, LOC, languages).
 
 **Files to create:**
 
-**`example/evidence/platform-stats.md`** — Quantifiable claims:
+**`example/evidence/platform-stats.md`** — All quantifiable claims in table format:
 ```markdown
-# Platform Stats
-## Verified numbers for applications
+# Verified Stats
+## Numbers you can cite in applications
 
-## [Category 1]
+## Professional
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| [metric] | [value] | [how to verify] |
+| Years of experience | [X] | Resume |
+| Languages proficient in | [list] | GitHub/projects |
+| Production systems built | [X] | Project list |
+
+## [Project Name]
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Lines of code | [X] | cloc or estimate |
+| Test count | [X] | Test suite |
+| Users/scale | [X] | Analytics |
 ```
 
 **`example/evidence/project-portfolio.md`** — Detailed project profiles:
@@ -102,35 +119,46 @@ Create `example/evidence/` files from the user's answers. These populate the sea
 ## [Project Name]
 
 **What it is:** [description]
-**Tech stack:** [languages, frameworks]
-**Scale:** [LOC, users, requests/day]
-**Key achievement:** [most impressive metric]
-**Relevance:** [why this matters for the application]
+**Tech stack:** [languages, frameworks, infrastructure]
+**Scale:** [LOC, users, requests/day, data volume]
+**Key achievement:** [most impressive metric or outcome]
+**Relevance:** [why this matters for applications]
+**Code samples:** [paths to notable files, or repo URLs]
+**Demo/live URL:** [if applicable]
 ```
+Create one section per project. Include ALL projects from the interview, not just the top ones.
 
-**`example/evidence/career-profile.md`** — Professional narrative:
+**`example/evidence/career-profile.md`** — Professional narrative + career arc:
 ```markdown
 # Career Profile
 
-## Background
-[Professional summary — who they are, what they do]
+## Summary
+[Who they are professionally in 2-3 sentences]
 
-## Key Stats
-| Claim | Number |
-|-------|--------|
-| Years of experience | X |
-| Languages | X |
-| Production systems | X |
+## Career Arc
+[The chronological story: where they started → key transitions → where they are now]
 
 ## Narrative Arc
-[Why they're applying to this, now — the story that connects their past to this opportunity]
+[Why they're applying to this specific thing now — the emotional/intellectual journey]
+
+## Education & Credentials
+- [Degree] — [School], [Year]
+- [Certification] — [Issuer], [Year]
+
+## Key Differentiators
+- [What makes them unusual/memorable as a candidate]
+- [Unconventional background angles]
+- [Unique perspectives they bring]
 ```
 
-Create additional evidence files if the user has domain-specific research, publications, open-source contributions, etc.
+**Additional evidence files** — create these if the user has the material:
+- `open-source-contributions.md` — PRs, repos, community involvement
+- `publications-and-talks.md` — papers, conference talks, blog posts
+- `domain-research.md` — if they have domain-specific knowledge (e.g., security research, ML papers read, industry analysis)
 
 ### Phase 3: Build the Company Directory
 
-Create `example/applications/{slug}/` with real content:
+Create `example/applications/{slug}/` with **real content** — not templates with `[placeholder]` brackets. Use the evidence base to write actual drafts.
 
 **`meta.json`:**
 ```json
@@ -145,109 +173,74 @@ Create `example/applications/{slug}/` with real content:
 }
 ```
 
-**`cover_letter.md`** — Write a REAL draft, not a template:
-```markdown
-# Cover Letter — [Company] [Role]
+**`cover_letter.md`** — Write a REAL first draft using the evidence base:
+- Opening: specific hook connecting their background to THIS role
+- Middle: 2-3 paragraphs mapping their strongest projects to the role's requirements, with specific numbers
+- Closing: enthusiasm + availability
+- Sign off with their name and contact info
 
-Dear [Hiring Team / specific name if known],
+**`talking_points.md`** — Real interview prep:
+- "Why This Company" with researched reasons (look up the company if needed)
+- "Why This Role" with experience mapping
+- Key numbers table (which stats to drop in conversation and when)
+- 5+ likely interview questions with prepared answers using their actual experience
+- 3+ questions for them to ask the interviewer
 
-[Opening: specific hook — why THIS company, why NOW, what caught their attention]
-
-[Middle: 2-3 paragraphs connecting their strongest projects/experience to the role requirements. Use specific numbers from the evidence base.]
-
-[Closing: enthusiasm, availability, call to action]
-
-Best regards,
-[Name]
-[email] | [portfolio]
-```
-
-**`talking_points.md`** — Interview prep with real content:
-```markdown
-# Talking Points — [Company]
-
-## Why This Company
-- [Specific reasons from research]
-- [How their values/mission align]
-- [What they know about the team/product]
-
-## Why This Role
-- [How their experience maps to requirements]
-- [What they'd work on in the first 90 days]
-- [Unique angle they bring]
-
-## Key Numbers to Drop
-| Claim | Number | Context |
-|-------|--------|---------|
-| [metric] | [value] | [when to use this in conversation] |
-
-## Likely Questions + Prepared Answers
-- "Tell me about [X]" → [concise answer with specific example]
-- "How would you approach [Y]?" → [framework + example]
-- "What's your experience with [Z]?" → [honest answer + bridge to strength]
-
-## Questions to Ask Them
-- [Thoughtful question about the role]
-- [Question about team/culture]
-- [Question about technical challenges]
-```
-
-**`project_highlights.md`** — Their best projects, tailored to this role:
-```markdown
-# Project Highlights — [Company]
-
-## [Project 1 — most relevant to this role]
-**What it is:** [description]
-**Tech stack:** [specifics]
-**Key metrics:** [numbers]
-**Why it matters for [Company]:** [explicit connection to role]
-**Code sample:** [if applicable, link or path]
-
-## [Project 2]
-...
-```
+**`project_highlights.md`** — Top 3-5 projects, **tailored to this role**:
+- Emphasize different aspects of the same projects depending on what the role values
+- Include specific metrics from the evidence base
+- Explain WHY each project matters for THIS company
 
 ### Phase 4: Configure Form Fields (if applicable)
 
 If the application portal has specific form fields:
 
-1. **Create constellation files** — one `.md` per field:
+1. **Research the portal** — if the user gave you an application URL, look up the exact form fields, word limits, and any instructions. Don't guess.
+
+2. **Create constellation files** — one `.md` per field, **left empty** for the user to first-draft in the browser:
    ```
    example/applications/{slug}/constellation/
-   ├── why_interested.md      (empty — user writes first draft in browser)
-   ├── relevant_experience.md
+   ├── {field_id}.md    (empty — user writes first draft in browser)
    └── ...
    ```
+   Use snake_case filenames matching the field topic (e.g., `why_interested.md`, `relevant_experience.md`).
 
-2. **Update `fields.json`** — configure each field with:
-   - `label`: Exact text from the portal
-   - `guidance`: What to write about (based on what the field is really asking)
-   - `reviewer_wants`: What evaluators look for (research the program if possible)
-   - `word_min` / `word_max`: Limits from the portal (estimate if not specified)
-   - `order`: Display order matching the portal
-   - `track`: Usually `"both"`
+3. **Update `fields.json`** with the actual portal fields:
+   - `label`: Exact question text from the portal
+   - `guidance`: What to write about (interpret what the field is really asking)
+   - `reviewer_wants`: What evaluators look for (research the program/company)
+   - `word_min` / `word_max`: From the portal (estimate 75-150 if not specified)
+   - `order`: Match the portal's field order
+   - `track`: Usually `"both"` unless the program has separate tracks
 
-3. **Add cheat sheets** — map the user's evidence to each field:
+4. **Build cheat sheets** — this is the highest-value part. For EACH field, map the user's specific evidence:
    ```json
    "cheatsheet": {
      "why_interested": {
-       "what_to_hit": ["Their specific narrative arc points"],
-       "evidence_to_cite": ["evidence/career-profile.md", "evidence/project-portfolio.md"],
-       "tips": ["Specific writing advice for THIS field"]
+       "what_to_hit": ["Their specific narrative arc points from Phase 1"],
+       "evidence_to_cite": ["evidence/career-profile.md (Narrative Arc section)",
+                            "evidence/project-portfolio.md (Project X)"],
+       "tips": ["Specific writing advice for THIS person and THIS field"]
      }
    }
    ```
-
-   This is the highest-value part. For each field, think: "What from this person's background is the strongest answer?" and map it.
+   Think: "What from this person's background is the STRONGEST answer to this question?" and map it explicitly.
 
 ### Phase 5: Build the Resume
 
-Create `example/applications/{slug}/resume/resume.html`:
+Create `example/applications/{slug}/resume/resume.html`.
 
-- If the user has an existing resume, read it and convert to clean HTML
-- If not, build one from the evidence base
-- Use clean, printable CSS (the UI has a PDF export via headless Chromium)
-- Structure: Contact → Summary → Experience → Projects → Education → Skills
+**If the user has an existing resume:**
+- Read it (whatever format — .html, .pdf text, .docx, pasted text)
+- Convert to clean, printable HTML
+- Preserve their content, improve the formatting
+- Tailor the summary/objective to this specific role
+
+**If building from scratch**, use the evidence base:
+- Structure: Name/Contact → Summary → Experience → Projects → Education → Skills
+- Use clean, printable CSS (will be rendered in an iframe and exported to PDF)
+- Keep font sizes readable (12-13px body)
+- Single-column layout, max 800px width
 
 ```html
 <!DOCTYPE html>
@@ -270,58 +263,78 @@ Create `example/applications/{slug}/resume/resume.html`:
   .entry-date { color: #888; font-size: 12px; }
   ul { margin: 3px 0 0 18px; }
   li { margin: 2px 0; }
-  .skills { display: flex; flex-wrap: wrap; gap: 6px; }
-  .skill { background: #f0f0f0; padding: 2px 8px; border-radius: 3px;
-           font-size: 11px; }
+  .skills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .skill { background: #f0f0f0; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
 </style>
 </head>
 <body>
-  <h1>[Full Name]</h1>
-  <div class="contact">[email] · [location] · [github/portfolio URL]</div>
-  <!-- Build from evidence base -->
+  <!-- Build from evidence base — real content, not placeholders -->
 </body>
 </html>
 ```
 
 ### Phase 6: Docker & Launch
 
-1. Update `docker-compose.yml` volume mounts if evidence lives outside `example/`:
+1. **Remove the example company** if the user doesn't want it:
+   ```bash
+   rm -rf example/applications/acme-corp
+   ```
+
+2. Update `docker-compose.yml` if evidence lives outside `example/`:
    ```yaml
    volumes:
      - ./example/applications:/data/applications
      - ./example/evidence:/data/evidence:ro
-     # Add custom paths if needed:
+     # Or mount external directories:
      # - /path/to/your/research:/data/evidence:ro
    ```
 
-2. Rebuild and launch:
+3. Rebuild and launch:
    ```bash
    docker compose up -d --build
    ```
 
-3. Verify:
+4. Verify everything loaded:
    ```bash
-   curl -s http://localhost:8135/api/companies | python3 -m json.tool
+   # Check companies appeared
+   curl -s http://localhost:8135/api/companies | python3 -c "
+   import json,sys
+   for c in json.load(sys.stdin):
+       print(f'{c[\"slug\"]}: {len(c[\"documents\"])} docs, constellation={c[\"has_constellation\"]}')
+   "
+
+   # Check evidence loaded
+   curl -s http://localhost:8135/api/evidence | python3 -c "
+   import json,sys
+   d=json.load(sys.stdin)
+   print(f'{len(d)} evidence sources, {sum(len(s[\"sections\"]) for s in d)} total sections')
+   "
+
+   # Check fields configured
+   curl -s http://localhost:8135/api/fellowship/both/fields | python3 -c "
+   import json,sys
+   d=json.load(sys.stdin)
+   print(f'{len(d)} form fields configured')
+   "
    ```
 
-4. Tell the user: "Open http://localhost:8135 — your workspace is ready. Select [company] to start writing."
+5. Tell the user: **"Open http://localhost:8135 — your workspace is ready. Select [company] to start writing. The constellation fields are empty for you to first-draft in the browser. When you're done with a draft, mark it as 'human_written' and come back to the CLI for refinement."**
 
 ### Phase 7: Ongoing Assistance
 
-After setup, the user will draft in the browser and come back to the CLI for help. Common requests:
+After setup, the user will draft in the browser and come back to the CLI for help:
 
 **"Refine my [field] draft":**
 ```bash
-# Read what they wrote
 cat example/applications/{slug}/constellation/{field}.md
-# Edit the file with improved prose, keeping their voice and staying within word limits
 ```
+Read it, then edit the file with improved prose. Keep their voice. Stay within word limits. Reference their evidence for stronger claims.
 
 **"Process my review notes":**
 ```bash
 curl -s http://localhost:8135/api/notes/export?company={slug} | python3 -m json.tool
-# Read each note, apply the requested changes to the corresponding .md files
 ```
+Read each note, find the corresponding .md file, apply the change.
 
 **"How's my progress?":**
 ```bash
@@ -329,7 +342,166 @@ curl -s http://localhost:8135/api/fellowship/both/progress | python3 -m json.too
 ```
 
 **"Add another company":**
-Repeat Phases 3-6 for the new company. Evidence files are shared across all companies.
+Repeat Phases 3-6 for the new company. Evidence files in `example/evidence/` are shared across all companies — only create company-specific materials in the company directory.
+
+**"Help me tailor my cover letter for [company]":**
+Read the evidence base + the company's meta.json, then write/refine the cover letter with specific connections to that company's mission and role requirements.
+
+**"Check my word counts":**
+```bash
+for f in example/applications/{slug}/constellation/*.md; do
+  wc -w "$f"
+done
+```
+
+---
+
+## Troubleshooting Guide
+
+### Docker Issues
+
+**Container won't start — port 8135 already in use:**
+```bash
+# Find what's using the port
+lsof -i :8135
+# Either stop that process, or change the port in docker-compose.yml:
+# ports: "8200:5000"
+```
+
+**`docker compose` command not found:**
+- You might have Docker Compose v1 (`docker-compose`) instead of v2 (`docker compose`)
+- Try: `docker-compose up -d` (with hyphen)
+- Or install Docker Compose v2: https://docs.docker.com/compose/install/
+
+**Build fails on Chromium install:**
+- This can happen on ARM/Apple Silicon. Chromium is only needed for PDF export.
+- To skip it, remove the Chromium line from `Dockerfile` and the `CHROMIUM_PATH` env var.
+- PDF generation will be disabled, but everything else works.
+
+**Container starts but immediately exits:**
+```bash
+docker compose logs anvil
+```
+Common causes:
+- `fields.json` has a JSON syntax error → validate with `python3 -m json.tool fields.json`
+- `app.py` has a syntax error → run `python3 -c "import app"` locally to check
+- Volume mount path doesn't exist → `ls` the paths in docker-compose.yml
+
+### UI Issues
+
+**No companies appear in the tab bar:**
+- The `applications/` directory must contain at least one subdirectory with a `.md` file
+- Check: `ls example/applications/*/` — each company dir needs at least one `.md`
+- Verify the volume mount in docker-compose.yml points to the right path
+
+**Company appears but constellation mode doesn't activate:**
+- The company directory needs a `constellation/` subdirectory with `.md` files inside
+- Check: `ls example/applications/{slug}/constellation/`
+- The subdirectory must contain at least one `.md` file
+- Constellation field filenames must be snake_case and match keys in `fields.json`
+
+**Evidence sidebar is empty (Ctrl+E shows nothing):**
+- Check `EVIDENCE_DIR` environment variable is set in docker-compose.yml
+- Check the volume mount points to a directory with `.md` files
+- Verify from inside the container: `docker exec anvil ls /data/evidence/`
+- Evidence files must be `.md` format with `## Heading` delimiters for sections
+
+**Stats cards don't appear in evidence sidebar:**
+- Stats are parsed specifically from a file named `platform-stats.md`
+- The file must contain markdown tables with `| Metric | Value | Source |` format
+- Table separator rows (`|---|---|---|`) are skipped automatically
+
+**Word counter shows wrong/no count:**
+- Word count is calculated on the client side from textarea content
+- It splits on whitespace — HTML comments and markdown syntax are counted as words
+- If writing in the browser, the counter updates live on every keystroke
+
+**Changes made via CLI don't appear in the browser:**
+- Refresh the browser page (F5) — the UI fetches fresh content from disk on each document load
+- If editing constellation fields via CLI, the browser will show the new content when you click the field
+
+**Edit/note buttons don't appear on paragraphs:**
+- Hover over a paragraph — buttons appear on the right side
+- If buttons still don't appear, check browser console for JS errors (F12 → Console)
+
+### Form Field Issues
+
+**Field appears in sidebar but shows no guidance/word counter:**
+- The field's `id` (filename without `.md`) must match a key in `fields.json` under `"fields"`
+- Example: `constellation/why_interested.md` → needs `"why_interested"` in fields.json
+- Check for typos in the filename or the JSON key
+
+**Cheat sheet panel is empty when clicking "Tips":**
+- The field needs a matching entry in the `"cheatsheet"` section of `fields.json`
+- The cheatsheet key must match the field key exactly
+
+**fields.json changes don't take effect:**
+- The file is read at container startup. After editing, restart:
+  ```bash
+  docker compose restart anvil
+  ```
+- Validate JSON syntax first: `python3 -m json.tool fields.json`
+
+### Resume Issues
+
+**Resume tab doesn't appear:**
+- The company directory needs a `resume/` subdirectory with an `.html` file
+- Check: `ls example/applications/{slug}/resume/`
+
+**PDF generation fails:**
+- Chromium must be installed in the container (it is by default in the Dockerfile)
+- Check: `docker exec anvil which chromium` — should return `/usr/bin/chromium`
+- If running on ARM/Apple Silicon, Chromium may not be available — see Docker Issues above
+- Check container logs: `docker compose logs anvil | grep -i pdf`
+
+**Resume preview is blank in the editor:**
+- The HTML file must be valid HTML. Check for unclosed tags.
+- The iframe preview debounces at 500ms — wait a moment after typing.
+
+### Export Issues
+
+**Export modal shows "[Not yet written]" for all fields:**
+- The constellation `.md` files are empty — you need to write content in the browser first
+- Or write content via CLI: `echo "Your text" > example/applications/{slug}/constellation/{field}.md`
+
+**"Email to self" fails:**
+- SMTP must be configured in docker-compose.yml environment variables
+- Required: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`
+- Optional: `SMTP_PORT` (defaults to 587), `EMAIL_TO` (defaults to SMTP_USER)
+- Test SMTP separately to rule out credential issues
+
+### Data & Backup Issues
+
+**Where is the database?**
+- SQLite file at the path specified by `DB_PATH` (default: `data/anvil.db`)
+- Contains review notes and field status — NOT document content (that's in .md files)
+
+**Where are backups?**
+- Every save via the UI creates a timestamped backup in `BACKUP_DIR`
+- Format: `{slug}__{document}__{YYYYMMDD_HHMMSS}.md`
+- CLI edits bypass backups — back up manually before bulk changes
+
+**How to reset everything:**
+```bash
+# Delete database (notes + status tracking)
+rm -f data/anvil.db
+# Delete backups
+rm -rf data/backups/*
+# Restart container to recreate tables
+docker compose restart anvil
+```
+
+### Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Editing files while container is stopped | Start container first — or edits are fine, just won't show until container runs |
+| Putting `.txt` files in evidence dir | Must be `.md` files |
+| Using spaces in company directory names | Use kebab-case: `acme-corp` not `Acme Corp` |
+| Forgetting to rebuild after Dockerfile changes | `docker compose up -d --build` |
+| JSON syntax error in fields.json | Validate: `python3 -m json.tool fields.json` |
+| Constellation filenames don't match fields.json keys | `why_interested.md` → key must be `"why_interested"` |
+| Mounting a file instead of a directory | Volume mounts must point to directories, not files |
 
 ---
 
@@ -340,6 +512,7 @@ Repeat Phases 3-6 for the new company. Evidence files are shared across all comp
 | GET | `/api/companies` | List all companies with docs and status |
 | GET | `/api/document/{slug}/{doc}` | Render document as HTML |
 | PUT | `/api/document/{slug}/{doc}` | Save document content |
+| PUT | `/api/document/{slug}/{doc}/block/{idx}` | Save single paragraph |
 | GET | `/api/document/{slug}/constellation/{field}` | Get constellation field + config |
 | PUT | `/api/document/{slug}/constellation/{field}` | Save constellation field |
 | GET | `/api/evidence` | All evidence sources with sections |
@@ -362,12 +535,15 @@ Repeat Phases 3-6 for the new company. Evidence files are shared across all comp
 | GET | `/api/resume-html/{slug}` | Raw resume HTML for editing |
 | PUT | `/api/resume-html/{slug}` | Save resume HTML |
 | POST | `/api/resume-html/{slug}/pdf` | Generate PDF via Chromium |
+| GET | `/api/resume-import/{slug}` | Import resume from fellowship dir |
 | GET | `/api/guide/{slug}` | Submission guide section |
 
 ## Editing Rules
 
 - **Read files before editing** — never assume contents
 - **Write to the same .md files** the UI reads from
-- **Don't touch the SQLite DB directly** — use the API
+- **Don't touch the SQLite DB directly** — use the API for notes and status
 - **Constellation fields are for the user to first-draft** — only refine after they mark as `human_written`
 - **Back up before bulk changes** — Anvil auto-backs-up on every UI save, but CLI edits bypass this
+- **Respect word limits** — check `fields.json` for min/max before editing constellation fields
+- **Keep the user's voice** — when refining, improve clarity and strength without changing their personality
