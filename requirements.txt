@@ -1,4 +1,6 @@
 flask==3.1.0
 markdown==3.7
 gunicorn==23.0.0
+flask-sock==0.7.0
+watchdog==4.0.0
 pytest==8.3.4

@@ -19,6 +19,12 @@ You draft in the browser with your evidence at your fingertips. Your LLM refines
 - **Export** — copy-paste-ready text for application portals, or email to yourself
 - **CLI-friendly** — all data is plain markdown on disk + a REST API for automation
 - **Auto-backups** — every save creates a timestamped backup
+- **Live collaboration** — CLI edits appear instantly in the browser via WebSocket
+- **Change highlighting** — orange for CLI-modified blocks, purple for new blocks (auto-fades)
+- **Edit history** — timeline of all edits with source attribution (Ctrl+H)
+- **Undo/Redo** — per-save undo stack with version restore (Ctrl+Z / Ctrl+Shift+Z)
+- **Version browser** — one-click restore from any backup
+- **Conflict protection** — external edit banner when you have unsaved changes
 
 ## Quick Start
 
@@ -38,15 +44,24 @@ The example application (`acme-corp`) loads automatically so you can explore the
 Paste this prompt into Claude Code, Cursor, or any CLI-based LLM running in the `anvil/` directory. It will interview you and build everything out:
 
 ````
-I want to set up Anvil for my applications. Read CLAUDE.md (especially the
-"Full Setup Guide for LLM Assistants" section) and follow the setup protocol.
+I want to set up Anvil — the application writing forge. Here's what to do:
 
-Interview me to gather what you need, then build out my complete workspace:
-- Evidence base from my background and projects
-- Company directories with real application materials
-- Form fields configured for the specific portal I'm applying to
-- Resume HTML built from my experience
-- Cheat sheets with my actual evidence mapped to each field
+1. Clone the repo and read the setup guide:
+   ```
+   git clone https://github.com/herakles-dev/anvil.git
+   cd anvil
+   ```
+2. Read CLAUDE.md (especially "Full Setup Guide for LLM Assistants") and follow the setup protocol.
+3. Interview me to gather what you need, then build out my complete workspace:
+   - Evidence base from my background and projects
+   - Company directories with real application materials
+   - Form fields configured for the specific portal I'm applying to
+   - Resume HTML built from my experience
+   - Cheat sheets with my actual evidence mapped to each field
+4. Start the container when ready:
+   ```
+   docker compose up -d --build
+   ```
 
 Here's my starting context:
 - I'm applying to: [COMPANY/PROGRAM — or "multiple, let's discuss"]
@@ -105,20 +120,25 @@ The LLM will ask follow-up questions about your experience, research the applica
 
 ```
 ┌─────────────────────┐     ┌──────────────┐     ┌─────────────────────┐
-│   You (browser)     │     │  .md files   │     │   LLM (terminal)    │
-│                     │────▶│  on disk     │◀────│                     │
+│   You (browser)     │◀═══▶│  .md files   │◀────│   LLM (terminal)    │
+│                     │ ws  │  on disk     │     │                     │
 │ - Draft text        │     │              │     │ - Refine prose      │
 │ - Leave notes       │     │ Single source│     │ - Fix word counts   │
 │ - Track status      │     │ of truth     │     │ - Process notes     │
 │ - Search evidence   │     │              │     │ - Research evidence │
 └─────────────────────┘     └──────────────┘     └─────────────────────┘
+        ▲                          │
+        └──── WebSocket push ──────┘
+              (instant reload)
 ```
 
 1. **You** write first drafts in the browser (guided mode shows word targets and tips)
 2. Mark fields as `human_written` when your draft is done
 3. **Your LLM** reads the files, refines the prose, fixes word counts
-4. You review in the browser, mark as `ai_refined`
-5. Final review → mark as `final` → export for the portal
+4. Changes appear instantly in your browser — CLI-modified blocks highlight in orange, new blocks in purple
+5. If you have unsaved changes when the CLI edits a file, a conflict banner lets you choose what to keep
+6. Review the changes, mark as `ai_refined`
+7. Final review → mark as `final` → export for the portal
 
 ## Keyboard Shortcuts
 
@@ -128,6 +148,9 @@ The LLM will ask follow-up questions about your experience, research the applica
 | `Ctrl+E` | Toggle evidence sidebar |
 | `Ctrl+Shift+C` | Toggle cheat sheet / tips |
 | `Ctrl+Shift+X` | Open export modal |
+| `Ctrl+H` | Toggle edit history panel |
+| `Ctrl+Z` | Undo last save (when not in editor) |
+| `Ctrl+Shift+Z` | Redo |
 | `Ctrl+Enter` | Save inline block edit |
 | `Esc` | Cancel inline edit |
 
@@ -201,11 +224,20 @@ curl -s "http://localhost:8135/api/evidence/search?q=kubernetes" | python3 -m js
 
 # Export all form fields as plain text
 curl -s http://localhost:8135/api/export/acme-corp/both/plain-text | python3 -m json.tool
+
+# Check if a file was modified externally
+curl -s http://localhost:8135/api/document/acme-corp/cover_letter/check
+
+# Get edit history
+curl -s http://localhost:8135/api/document/acme-corp/cover_letter/history
+
+# List backup versions
+curl -s http://localhost:8135/api/document/acme-corp/cover_letter/versions
 ```
 
 ## Tech Stack
 
-- **Backend:** Flask 3.1, SQLite, Python 3.11
+- **Backend:** Flask 3.1, SQLite, Python 3.11, flask-sock (WebSocket), watchdog (file watcher)
 - **Frontend:** Vanilla JS (no framework), CSS custom properties
 - **PDF:** Headless Chromium (installed in Docker image)
 - **Container:** Docker with gunicorn

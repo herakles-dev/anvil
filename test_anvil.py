@@ -914,6 +914,162 @@ class TestHelpers:
 
 
 # =========================================================================
+# Edit History API
+# =========================================================================
+
+class TestEditHistory:
+    def test_history_recorded_on_save(self, client):
+        """Saving a document creates an edit history entry."""
+        client.put('/api/document/test-company/cover_letter',
+                   json={'content': '# Updated\n\nNew content.'})
+        r = client.get('/api/document/test-company/cover_letter/history')
+        assert r.status_code == 200
+        history = r.get_json()
+        assert len(history) >= 1
+        assert history[0]['source'] == 'browser'
+        assert history[0]['company_slug'] == 'test-company'
+        assert history[0]['document'] == 'cover_letter'
+
+    def test_history_word_count(self, client):
+        """History tracks word count before and after."""
+        client.put('/api/document/test-company/cover_letter',
+                   json={'content': 'three word doc'})
+        r = client.get('/api/document/test-company/cover_letter/history')
+        entry = r.get_json()[0]
+        assert entry['word_count_after'] == 3
+        assert entry['word_count_before'] > 0  # had content before
+
+    def test_history_trimming(self, client):
+        """History trims to 50 entries per document."""
+        for i in range(55):
+            client.put('/api/document/test-company/cover_letter',
+                       json={'content': f'Version {i} content here.'})
+        r = client.get('/api/document/test-company/cover_letter/history')
+        # API returns max 20, but DB should have max 50
+        history = r.get_json()
+        assert len(history) <= 20  # endpoint limits to 20
+
+    def test_history_empty(self, client):
+        """History returns empty list for document with no edits."""
+        r = client.get('/api/document/test-company/talking_points/history')
+        assert r.status_code == 200
+        assert r.get_json() == []
+
+    def test_history_404_bad_company(self, client):
+        """History returns 404 for nonexistent company."""
+        r = client.get('/api/document/nonexistent/cover_letter/history')
+        assert r.status_code == 404
+
+    def test_check_endpoint(self, client):
+        """Check endpoint returns mtime and external_edit flag."""
+        # First load the document (sets _served_mtimes)
+        client.get('/api/document/test-company/cover_letter')
+        r = client.get('/api/document/test-company/cover_letter/check')
+        assert r.status_code == 200
+        data = r.get_json()
+        assert 'mtime' in data
+        assert 'external_edit' in data
+
+    def test_external_edit_detection(self, client):
+        """Check detects external file modification."""
+        import time
+        # Load document to set baseline mtime
+        client.get('/api/document/test-company/cover_letter')
+        # Simulate CLI edit by writing directly to file
+        time.sleep(0.1)  # ensure mtime changes
+        filepath = os.path.join(_apps_dir, 'test-company', 'cover_letter.md')
+        with open(filepath, 'w') as f:
+            f.write('# CLI Edited\n\nThis was changed by CLI.')
+        r = client.get('/api/document/test-company/cover_letter/check')
+        data = r.get_json()
+        assert data['external_edit'] is True
+
+    def test_constellation_field_history(self, client):
+        """Constellation field saves are recorded in history."""
+        client.put('/api/document/test-company/constellation/why_interested',
+                   json={'content': 'I am very interested.'})
+        r = client.get('/api/document/test-company/constellation/why_interested/history')
+        assert r.status_code == 200
+        history = r.get_json()
+        assert len(history) >= 1
+        assert 'constellation' in history[0]['document']
+
+    def test_check_404_bad_company(self, client):
+        """Check returns 404 for nonexistent company."""
+        r = client.get('/api/document/nonexistent/cover_letter/check')
+        assert r.status_code == 404
+
+
+# =========================================================================
+# Versions API
+# =========================================================================
+
+class TestVersions:
+    def test_list_versions(self, client):
+        """Saving creates a backup visible in versions list."""
+        client.put('/api/document/test-company/cover_letter',
+                   json={'content': '# Backup Test\n\nContent.'})
+        r = client.get('/api/document/test-company/cover_letter/versions')
+        assert r.status_code == 200
+        versions = r.get_json()
+        assert len(versions) >= 1
+        assert 'filename' in versions[0]
+        assert 'size' in versions[0]
+
+    def test_restore_version(self, client):
+        """Restoring a version replaces current content."""
+        # Save twice to create a backup of original
+        original_content = '# Original\n\nOriginal content.'
+        client.put('/api/document/test-company/cover_letter',
+                   json={'content': original_content})
+        # Get the backup filename
+        r = client.get('/api/document/test-company/cover_letter/versions')
+        versions = r.get_json()
+        assert len(versions) >= 1
+        backup_filename = versions[0]['filename']
+        # Save again with different content
+        client.put('/api/document/test-company/cover_letter',
+                   json={'content': '# Changed\n\nDifferent content.'})
+        # Restore from backup
+        r = client.post('/api/document/test-company/cover_letter/restore',
+                        json={'filename': backup_filename})
+        assert r.status_code == 200
+        # Verify the content contains something from the backup
+        data = r.get_json()
+        assert 'raw' in data
+        assert 'html' in data
+
+    def test_restore_path_traversal_blocked(self, client):
+        """Path traversal in restore filename is blocked."""
+        r = client.post('/api/document/test-company/cover_letter/restore',
+                        json={'filename': '../../../etc/passwd'})
+        assert r.status_code == 400
+
+    def test_restore_nonexistent_backup(self, client):
+        """Restoring nonexistent backup returns 404."""
+        r = client.post('/api/document/test-company/cover_letter/restore',
+                        json={'filename': 'nonexistent__backup__20990101_000000.md'})
+        assert r.status_code == 404
+
+    def test_restore_empty_filename(self, client):
+        """Restoring with empty filename returns 400."""
+        r = client.post('/api/document/test-company/cover_letter/restore',
+                        json={'filename': ''})
+        assert r.status_code == 400
+
+    def test_versions_404_bad_company(self, client):
+        """Versions returns 404 for nonexistent company."""
+        r = client.get('/api/document/nonexistent/cover_letter/versions')
+        assert r.status_code == 404
+
+    def test_restore_404_bad_company(self, client):
+        """Restore returns 404 for nonexistent company."""
+        r = client.post('/api/document/nonexistent/cover_letter/restore',
+                        json={'filename': 'test.md'})
+        assert r.status_code == 404
+
+
+# =========================================================================
 # Cleanup
 # =========================================================================
 

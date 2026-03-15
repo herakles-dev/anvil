@@ -10,6 +10,9 @@
  * Keyboard shortcuts:
  *   Ctrl+S          — Save current document
  *   Ctrl+E          — Toggle evidence sidebar
+ *   Ctrl+H          — Toggle edit history panel
+ *   Ctrl+Z          — Undo (when not editing text)
+ *   Ctrl+Shift+Z    — Redo (when not editing text)
  *   Ctrl+Shift+C    — Toggle cheat sheet / tips panel
  *   Ctrl+Shift+X    — Open export modal
  */
@@ -29,6 +32,11 @@ let state = {
   cheatSheetVisible: false,
   fieldStatuses: {},
   resumeEditorMode: false,
+  undoStack: [],
+  redoStack: [],
+  historyVisible: false,
+  lastKnownBlocks: [],
+  wsConnected: false,
 };
 
 const DOC_ICONS = {
@@ -61,6 +69,389 @@ function getDocIcon(id) {
   return DOC_ICONS[id] || DOC_ICONS.default;
 }
 
+// =============================================================================
+// WebSocket — Live collaboration
+// =============================================================================
+
+let _ws = null;
+let _wsReconnectTimer = null;
+
+function connectWebSocket() {
+  if (_ws && _ws.readyState <= 1) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  _ws = new WebSocket(`${proto}//${location.host}/api/ws`);
+
+  _ws.onopen = () => {
+    state.wsConnected = true;
+    updateConnectionStatus(true);
+    if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+  };
+
+  _ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'file_changed') {
+      handleExternalChange(data.slug, data.document);
+    }
+    // Brief visual pulse on the status dot
+    const dot = document.getElementById('ws-status');
+    if (dot) {
+      dot.classList.add('receiving');
+      setTimeout(() => dot.classList.remove('receiving'), 500);
+    }
+  };
+
+  _ws.onclose = () => {
+    state.wsConnected = false;
+    updateConnectionStatus(false);
+    _wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+  };
+
+  _ws.onerror = () => {
+    // onclose will fire after this
+  };
+}
+
+function updateConnectionStatus(connected) {
+  const dot = document.getElementById('ws-status');
+  if (!dot) return;
+  dot.classList.toggle('ws-connected', connected);
+  dot.title = connected ? 'WebSocket: connected' : 'WebSocket: disconnected';
+}
+
+// =============================================================================
+// External Change Handler
+// =============================================================================
+
+function handleExternalChange(slug, document) {
+  // Only care about currently viewed document
+  if (slug !== state.activeCompany) {
+    showToast(`${slug}/${document} updated externally`);
+    return;
+  }
+  // Normalize: the server sends doc paths like "cover_letter" or "constellation/why_interested"
+  if (document !== state.activeDoc) {
+    showToast(`${document} updated by CLI`);
+    return;
+  }
+
+  if (state.dirty) {
+    showExternalEditBanner();
+    return;
+  }
+
+  // Auto-reload with highlights
+  autoReloadWithHighlights();
+}
+
+function showExternalEditBanner() {
+  // Remove existing banner if any
+  const existing = document.querySelector('.external-edit-banner');
+  if (existing) return;  // already showing
+
+  const banner = document.createElement('div');
+  banner.className = 'external-edit-banner';
+  banner.innerHTML = `
+    <span style="font-size: 16px;">&#9888;</span>
+    <span style="flex:1">This file was updated externally. You have unsaved changes.</span>
+    <button class="btn btn-primary" onclick="this.closest('.external-edit-banner').remove(); autoReloadWithHighlights();">Reload</button>
+    <button class="btn btn-ghost" onclick="this.closest('.external-edit-banner').remove();">Dismiss</button>
+  `;
+  const content = document.getElementById('content');
+  content.insertBefore(banner, content.firstChild);
+}
+
+async function autoReloadWithHighlights() {
+  if (!state.activeCompany || !state.activeDoc) return;
+  const oldBlocks = [...state.lastKnownBlocks];
+
+  // Determine fetch URL based on doc type
+  let url;
+  if (state.activeDoc.startsWith('constellation/')) {
+    const fieldId = state.activeDoc.replace('constellation/', '');
+    url = `/api/document/${state.activeCompany}/constellation/${fieldId}`;
+  } else {
+    url = `/api/document/${state.activeCompany}/${state.activeDoc}`;
+  }
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    state.rawContent = data.raw;
+    state.blocks = data.blocks;
+    state.lastKnownBlocks = [...data.blocks];
+    state.dirty = false;
+    renderContent(data);
+    highlightChangedBlocks(oldBlocks, data.blocks);
+    showToast('Reloaded — external changes highlighted');
+  } catch (e) {
+    console.error('Auto-reload failed:', e);
+  }
+}
+
+function renderContent(data) {
+  // Re-render the current view based on document type
+  if (state.activeDoc && state.activeDoc.startsWith('constellation/')) {
+    // For constellation fields, update the editor textarea
+    const editor = document.getElementById('constellation-editor');
+    if (editor) {
+      editor.value = data.raw;
+      editor.dispatchEvent(new Event('input'));
+    }
+  } else if (state.editMode) {
+    // Source mode — update textarea
+    const editor = document.getElementById('source-editor');
+    if (editor) {
+      editor.value = data.raw;
+    }
+  } else {
+    // Review mode — re-render HTML
+    if (data.html) {
+      renderReviewMode(data.html);
+    }
+  }
+}
+
+// =============================================================================
+// Change Highlighting
+// =============================================================================
+
+function highlightChangedBlocks(oldBlocks, newBlocks) {
+  const reviewables = document.querySelectorAll('.reviewable');
+  reviewables.forEach((el, i) => {
+    if (i < oldBlocks.length) {
+      if (newBlocks[i] !== oldBlocks[i]) {
+        el.classList.add('cli-edited');
+        setTimeout(() => el.classList.remove('cli-edited'), 10000);
+      }
+    } else {
+      // New block that didn't exist before
+      el.classList.add('cli-added');
+      setTimeout(() => el.classList.remove('cli-added'), 10000);
+    }
+  });
+}
+
+// =============================================================================
+// Undo / Redo — per-save snapshots
+// =============================================================================
+
+function pushUndo() {
+  if (!state.rawContent) return;
+  state.undoStack.push({ raw: state.rawContent, blocks: [...state.blocks] });
+  if (state.undoStack.length > 30) state.undoStack.shift();
+  state.redoStack = [];
+  updateUndoRedoButtons();
+}
+
+async function undo() {
+  if (state.undoStack.length === 0) return;
+  const snapshot = state.undoStack.pop();
+  state.redoStack.push({ raw: state.rawContent, blocks: [...state.blocks] });
+
+  // Save the restored content to disk
+  let url;
+  if (state.activeDoc.startsWith('constellation/')) {
+    const fieldId = state.activeDoc.replace('constellation/', '');
+    url = `/api/document/${state.activeCompany}/constellation/${fieldId}`;
+  } else {
+    url = `/api/document/${state.activeCompany}/${state.activeDoc}`;
+  }
+  try {
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: snapshot.raw }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      state.rawContent = data.raw;
+      state.blocks = data.blocks;
+      state.lastKnownBlocks = [...data.blocks];
+      state.dirty = false;
+      renderContent(data);
+      showToast('Undo');
+    }
+  } catch (e) {
+    console.error('Undo failed:', e);
+    // Push back to undo stack on failure
+    state.undoStack.push(snapshot);
+    state.redoStack.pop();
+  }
+  updateUndoRedoButtons();
+}
+
+async function redo() {
+  if (state.redoStack.length === 0) return;
+  const snapshot = state.redoStack.pop();
+  state.undoStack.push({ raw: state.rawContent, blocks: [...state.blocks] });
+
+  let url;
+  if (state.activeDoc.startsWith('constellation/')) {
+    const fieldId = state.activeDoc.replace('constellation/', '');
+    url = `/api/document/${state.activeCompany}/constellation/${fieldId}`;
+  } else {
+    url = `/api/document/${state.activeCompany}/${state.activeDoc}`;
+  }
+  try {
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: snapshot.raw }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      state.rawContent = data.raw;
+      state.blocks = data.blocks;
+      state.lastKnownBlocks = [...data.blocks];
+      state.dirty = false;
+      renderContent(data);
+      showToast('Redo');
+    }
+  } catch (e) {
+    console.error('Redo failed:', e);
+    state.redoStack.push(snapshot);
+    state.undoStack.pop();
+  }
+  updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById('undo-btn');
+  const redoBtn = document.getElementById('redo-btn');
+  if (undoBtn) undoBtn.disabled = state.undoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = state.redoStack.length === 0;
+}
+
+// =============================================================================
+// Edit History Panel
+// =============================================================================
+
+function toggleHistory() {
+  state.historyVisible = !state.historyVisible;
+  if (state.historyVisible) {
+    // Close evidence panel if open (only one right panel at a time)
+    if (state.evidenceVisible) {
+      state.evidenceVisible = false;
+      const evPanel = document.getElementById('right-panel');
+      if (evPanel) evPanel.style.display = 'none';
+    }
+    showHistoryPanel();
+  } else {
+    const panel = document.querySelector('.history-panel');
+    if (panel) panel.remove();
+  }
+}
+
+async function showHistoryPanel() {
+  // Remove existing panel
+  const existing = document.querySelector('.history-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.className = 'history-panel right-panel';
+
+  let historyHtml = '<div class="evidence-loading">Loading history...</div>';
+
+  panel.innerHTML = `
+    <div class="evidence-header">
+      <span class="evidence-title">Edit History</span>
+      <button class="btn btn-ghost evidence-close" onclick="toggleHistory()">&#10005;</button>
+    </div>
+    <div class="evidence-body" id="history-body">${historyHtml}</div>
+  `;
+
+  document.querySelector('.main').appendChild(panel);
+
+  // Fetch history
+  if (state.activeCompany && state.activeDoc) {
+    try {
+      const [histResp, verResp] = await Promise.all([
+        fetch(`/api/document/${state.activeCompany}/${state.activeDoc}/history`),
+        fetch(`/api/document/${state.activeCompany}/${state.activeDoc}/versions`),
+      ]);
+      const history = histResp.ok ? await histResp.json() : [];
+      const versions = verResp.ok ? await verResp.json() : [];
+
+      let html = '';
+
+      if (history.length > 0) {
+        html += '<div style="margin-bottom:16px"><div class="sidebar-section" style="padding:0 0 8px">RECENT EDITS</div>';
+        history.forEach(entry => {
+          const sourceClass = entry.source === 'browser' ? 'history-browser' :
+                              entry.source === 'restore' ? 'history-restore' : 'history-external';
+          const sourceIcon = entry.source === 'browser' ? '&#127760;' :
+                             entry.source === 'restore' ? '&#128260;' : '&#9000;';
+          const delta = entry.word_count_after - entry.word_count_before;
+          const deltaStr = delta > 0 ? `+${delta}` : `${delta}`;
+          const deltaColor = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--text-dim)';
+          const time = new Date(entry.created_at).toLocaleString();
+          html += `
+            <div class="history-entry ${sourceClass}">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <span style="font-size:14px">${sourceIcon}</span>
+                <span class="history-summary">${entry.summary || 'Edit'}</span>
+                <span style="color:${deltaColor};font-size:11px;font-family:var(--font-mono);margin-left:auto">${deltaStr} words</span>
+              </div>
+              <div class="history-meta">${time} &middot; ${entry.source}</div>
+            </div>`;
+        });
+        html += '</div>';
+      } else {
+        html += '<div style="color:var(--text-dim);font-size:12px;margin-bottom:16px">No edit history yet.</div>';
+      }
+
+      if (versions.length > 0) {
+        html += '<div><div class="sidebar-section" style="padding:0 0 8px">BACKUP VERSIONS</div>';
+        versions.forEach(v => {
+          const ts = v.filename.match(/__(\d{8}_\d{6})/);
+          const label = ts ? ts[1].replace('_', ' ') : v.filename;
+          html += `
+            <div class="version-item">
+              <div>
+                <div style="font-size:12px;color:var(--text-secondary)">${label}</div>
+                <div style="font-size:10px;color:var(--text-dim)">${Math.round(v.size/1024)}KB</div>
+              </div>
+              <button class="btn btn-ghost" style="font-size:11px" onclick="restoreVersion('${v.filename}')">Restore</button>
+            </div>`;
+        });
+        html += '</div>';
+      }
+
+      document.getElementById('history-body').innerHTML = html || '<div style="color:var(--text-dim);font-size:12px">No history available.</div>';
+    } catch (e) {
+      document.getElementById('history-body').innerHTML = '<div style="color:var(--red);font-size:12px">Failed to load history.</div>';
+    }
+  }
+}
+
+async function restoreVersion(filename) {
+  if (!state.activeCompany || !state.activeDoc) return;
+  pushUndo();  // Save current state before restoring
+  try {
+    const resp = await fetch(`/api/document/${state.activeCompany}/${state.activeDoc}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      state.rawContent = data.raw;
+      state.blocks = data.blocks;
+      state.lastKnownBlocks = [...data.blocks];
+      state.dirty = false;
+      renderContent(data);
+      showToast('Version restored');
+      if (state.historyVisible) showHistoryPanel();  // Refresh panel
+    } else {
+      showToast('Restore failed');
+    }
+  } catch (e) {
+    console.error('Restore failed:', e);
+    showToast('Restore failed');
+  }
+}
+
 // --- Init ---
 
 async function init() {
@@ -75,6 +466,24 @@ async function init() {
 
   // Global keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    // Ctrl+H — toggle history panel
+    if (e.ctrlKey && !e.shiftKey && e.key === 'h') {
+      e.preventDefault();
+      toggleHistory();
+      return;
+    }
+    // Ctrl+Z — undo (only when not in a textarea/input)
+    if (e.ctrlKey && !e.shiftKey && e.key === 'z' && !state.editMode && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    // Ctrl+Shift+Z — redo
+    if (e.ctrlKey && e.shiftKey && e.key === 'Z' && !state.editMode && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      redo();
+      return;
+    }
     if (e.ctrlKey && e.key === 'e') {
       e.preventDefault();
       toggleEvidencePanel();
@@ -353,6 +762,10 @@ async function selectDocument(docId) {
   const data = await res.json();
   state.rawContent = data.raw;
   state.blocks = data.blocks || [];
+  state.lastKnownBlocks = [...(data.blocks || [])];
+  state.undoStack = [];
+  state.redoStack = [];
+  updateUndoRedoButtons();
 
   renderReviewMode(data.html);
 }
@@ -373,6 +786,10 @@ async function loadConstellationField(docId) {
   const data = await res.json();
   state.rawContent = data.raw;
   state.blocks = data.blocks || [];
+  state.lastKnownBlocks = [...(data.blocks || [])];
+  state.undoStack = [];
+  state.redoStack = [];
+  updateUndoRedoButtons();
 
   const fieldConfig = data.field_config || {};
   const fieldStatus = state.fieldStatuses[docId]?.status || 'not_started';
@@ -494,6 +911,8 @@ async function saveConstellationField() {
   const statusEl = document.getElementById('save-status');
   statusEl.textContent = 'Saving...';
   statusEl.className = 'save-status saving';
+
+  pushUndo();
 
   const res = await fetch(`/api/document/${state.activeCompany}/${state.activeDoc}`, {
     method: 'PUT',
@@ -1002,6 +1421,8 @@ function renderReviewMode(html) {
     <div class="content-toolbar">
       <span class="doc-title">${icon} ${escapeHtml(docLabel)}</span>
       <div class="toolbar-actions">
+        <button id="undo-btn" class="btn btn-ghost mode-btn" onclick="undo()" disabled title="Undo (Ctrl+Z)">&#x21B6;</button>
+        <button id="redo-btn" class="btn btn-ghost mode-btn" onclick="redo()" disabled title="Redo (Ctrl+Shift+Z)">&#x21B7;</button>
         <button class="btn btn-ghost mode-btn active" id="btn-review" onclick="switchMode('review')">Review</button>
         <button class="btn btn-ghost mode-btn" id="btn-source" onclick="switchMode('source')">Source</button>
         ${state.fellowshipMode ? '<button class="btn btn-ghost mode-btn" onclick="toggleEvidencePanel()" title="Ctrl+E">Evidence</button>' : ''}
@@ -1086,6 +1507,8 @@ async function saveSource() {
   statusEl.textContent = 'Saving...';
   statusEl.className = 'save-status saving';
 
+  pushUndo();
+
   const res = await fetch(`/api/document/${state.activeCompany}/${state.activeDoc}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -1158,6 +1581,8 @@ async function saveInlineEdit(btn, blockIdx) {
 
   btn.disabled = true;
   btn.textContent = 'Saving...';
+
+  pushUndo();
 
   const res = await fetch(
     `/api/document/${state.activeCompany}/${state.activeDoc}/block/${blockIdx}`,
@@ -1450,4 +1875,7 @@ function formatDate(iso) {
 }
 
 // --- Start ---
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  connectWebSocket();
+});

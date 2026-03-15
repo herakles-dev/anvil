@@ -8,8 +8,11 @@ Anvil is a **browser UI** that reads and writes **plain markdown files on disk**
 
 ```
 You write in browser  ──→  .md files on disk  ←──  LLM refines via CLI
-                              ↕
-                        Anvil reads/writes
+                              ↕                          │
+                        Anvil reads/writes          watchdog detects
+                              ↕                          │
+                        WebSocket pushes  ←──────────────┘
+                        changes to browser instantly
 ```
 
 ## Project Structure
@@ -25,7 +28,7 @@ anvil/
 │   └── review.html         # Single-page Jinja2 template
 ├── docker-compose.yml      # Container config
 ├── Dockerfile              # Python 3.11 + Chromium
-├── requirements.txt        # Flask, markdown, gunicorn
+├── requirements.txt        # Flask, markdown, gunicorn, flask-sock, watchdog
 └── example/                # Application workspace
     ├── applications/       # One subdirectory per company/program
     │   └── {company-slug}/
@@ -354,6 +357,32 @@ for f in example/applications/{slug}/constellation/*.md; do
 done
 ```
 
+### Live Collaboration Protocol
+
+When you edit files via CLI, the browser updates instantly:
+
+1. **Edit the .md file** -- write, refine, fix word counts as usual
+2. **The browser highlights your changes** -- orange borders on modified blocks, purple on new blocks
+3. **If the user has unsaved work** -- they see a conflict banner instead of auto-reload
+4. **History tracks everything** -- Ctrl+H shows both browser and CLI edits with timestamps
+
+**Live collaboration is now built-in.** When you edit a .md file via CLI:
+- The browser auto-reloads if the user has no unsaved changes (orange highlight on changed blocks)
+- If the user IS editing (unsaved changes), a banner appears: "Updated externally -- Reload / Dismiss"
+- The user can press Ctrl+H to see the full edit history with source attribution
+- Every save (browser or CLI) creates a backup accessible via Ctrl+H then Versions
+
+API endpoints for collaboration:
+- `GET /api/document/{slug}/{doc}/check` -- poll mtime (fallback when WebSocket is down)
+- `GET /api/document/{slug}/{doc}/history` -- see recent edits with source attribution
+- `GET /api/document/{slug}/{doc}/versions` -- list available backup versions
+- `POST /api/document/{slug}/{doc}/restore` -- restore a backup (creates a new backup first)
+
+The WebSocket connection to `/api/ws` sends JSON messages:
+```json
+{"type": "file_changed", "slug": "acme-corp", "document": "cover_letter"}
+```
+
 ---
 
 ## Troubleshooting Guide
@@ -417,8 +446,14 @@ Common causes:
 - If writing in the browser, the counter updates live on every keystroke
 
 **Changes made via CLI don't appear in the browser:**
-- Refresh the browser page (F5) — the UI fetches fresh content from disk on each document load
-- If editing constellation fields via CLI, the browser will show the new content when you click the field
+- Changes should appear instantly via WebSocket. Check that the WebSocket indicator (green dot in top-right) is connected.
+- If the dot is gray, the connection is down -- changes will appear on next page reload (F5).
+- If editing constellation fields via CLI, the browser will show the new content when you click the field.
+
+**WebSocket dot is gray (disconnected):**
+- The container may have restarted -- WebSocket auto-reconnects every 3 seconds
+- If persistently gray, check container logs: `docker compose logs anvil`
+- Flask-sock requires single-worker gunicorn (already configured in Dockerfile)
 
 **Edit/note buttons don't appear on paragraphs:**
 - Hover over a paragraph — buttons appear on the right side
@@ -474,12 +509,12 @@ Common causes:
 
 **Where is the database?**
 - SQLite file at the path specified by `DB_PATH` (default: `data/anvil.db`)
-- Contains review notes and field status — NOT document content (that's in .md files)
+- Contains review notes, field status, and edit history -- NOT document content (that's in .md files)
 
 **Where are backups?**
-- Every save via the UI creates a timestamped backup in `BACKUP_DIR`
+- Every save (browser or CLI) creates a timestamped backup in `BACKUP_DIR`
 - Format: `{slug}__{document}__{YYYYMMDD_HHMMSS}.md`
-- CLI edits bypass backups — back up manually before bulk changes
+- View and restore backups from the browser via Ctrl+H (History panel) then Versions
 
 **How to reset everything:**
 ```bash
@@ -510,7 +545,7 @@ docker compose restart anvil
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/companies` | List all companies with docs and status |
-| GET | `/api/document/{slug}/{doc}` | Render document as HTML |
+| GET | `/api/document/{slug}/{doc}` | Render document as HTML (includes `external_edit` flag) |
 | PUT | `/api/document/{slug}/{doc}` | Save document content |
 | PUT | `/api/document/{slug}/{doc}/block/{idx}` | Save single paragraph |
 | GET | `/api/document/{slug}/constellation/{field}` | Get constellation field + config |
@@ -537,13 +572,20 @@ docker compose restart anvil
 | POST | `/api/resume-html/{slug}/pdf` | Generate PDF via Chromium |
 | GET | `/api/resume-import/{slug}` | Import resume from fellowship dir |
 | GET | `/api/guide/{slug}` | Submission guide section |
+| GET | `/api/ws` | WebSocket -- live file change notifications |
+| GET | `/api/document/{slug}/{doc}/history` | Edit history (last 20 entries) |
+| GET | `/api/document/{slug}/{doc}/versions` | List backup files for restore |
+| POST | `/api/document/{slug}/{doc}/restore` | Restore from backup version |
+| GET | `/api/document/{slug}/{doc}/check` | Mtime check + external edit flag |
 
 ## Editing Rules
 
-- **Read files before editing** — never assume contents
+- **Read files before editing** -- never assume contents
 - **Write to the same .md files** the UI reads from
-- **Don't touch the SQLite DB directly** — use the API for notes and status
-- **Constellation fields are for the user to first-draft** — only refine after they mark as `human_written`
-- **Back up before bulk changes** — Anvil auto-backs-up on every UI save, but CLI edits bypass this
-- **Respect word limits** — check `fields.json` for min/max before editing constellation fields
-- **Keep the user's voice** — when refining, improve clarity and strength without changing their personality
+- **Don't touch the SQLite DB directly** -- use the API for notes and status
+- **Constellation fields are for the user to first-draft** -- only refine after they mark as `human_written`
+- **Respect word limits** -- check `fields.json` for min/max before editing constellation fields
+- **Keep the user's voice** -- when refining, improve clarity and strength without changing their personality
+- **CLI edits are now detected automatically** -- the file watcher (watchdog) notifies the browser via WebSocket. You don't need to tell the user to refresh.
+- **Edit history tracks everything** -- every save (browser, CLI, or restore) is logged with word count deltas. Users can see the timeline via Ctrl+H.
+- **Undo is available** -- users can Ctrl+Z to undo saves (max 30 entries in the undo stack). Your CLI edits are also undoable from the browser.

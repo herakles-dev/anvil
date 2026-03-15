@@ -6,7 +6,7 @@ grants, jobs). Designed to be used alongside a CLI-based LLM like Claude Code:
 you write and review in the browser, the LLM reads and refines the markdown
 files on disk.
 
-https://github.com/herakles-dev/anvil
+Part of the Herakles ecosystem.  https://github.com/herakles-dev
 """
 
 import json
@@ -22,12 +22,16 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, render_template, request, send_file
 import markdown
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from flask_sock import Sock
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
 app = Flask(__name__)
+sock = Sock(app)
 
 APPLICATIONS_DIR = os.environ.get(
     'APPLICATIONS_DIR',
@@ -57,6 +61,52 @@ if os.path.exists(_fields_path):
 else:
     CONSTELLATION_FIELDS = {}
     EVIDENCE_CHEATSHEET = {}
+
+# =============================================================================
+# WebSocket clients & file watcher
+# =============================================================================
+
+_ws_clients = []
+_served_mtimes = {}
+
+
+class _FileChangeHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        if not event.src_path.endswith('.md') and not event.src_path.endswith('.html'):
+            return
+        try:
+            rel = os.path.relpath(event.src_path, APPLICATIONS_DIR)
+        except ValueError:
+            return
+        parts = rel.split(os.sep)
+        if len(parts) < 2:
+            return
+        slug = parts[0]
+        doc_path = '/'.join(parts[1:])
+        # Strip extension
+        for ext in ('.md', '.html'):
+            if doc_path.endswith(ext):
+                doc_path = doc_path[:-len(ext)]
+                break
+        msg = json.dumps({'type': 'file_changed', 'slug': slug, 'document': doc_path})
+        for ws in _ws_clients[:]:
+            try:
+                ws.send(msg)
+            except Exception:
+                try:
+                    _ws_clients.remove(ws)
+                except ValueError:
+                    pass
+
+
+_observer = None
+if os.path.isdir(APPLICATIONS_DIR):
+    _observer = Observer()
+    _observer.schedule(_FileChangeHandler(), path=APPLICATIONS_DIR, recursive=True)
+    _observer.daemon = True
+    _observer.start()
 
 # =============================================================================
 # Database
@@ -101,6 +151,16 @@ def get_db():
         category TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS edit_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_slug TEXT NOT NULL,
+        document TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'browser',
+        word_count_before INTEGER DEFAULT 0,
+        word_count_after INTEGER DEFAULT 0,
+        summary TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
     conn.commit()
     return conn
 
@@ -139,6 +199,32 @@ def _backup(filepath, slug, label):
     with open(filepath) as f:
         with open(os.path.join(BACKUP_DIR, backup_name), 'w') as bf:
             bf.write(f.read())
+
+
+def _log_edit(slug, doc_id, source, old_content, new_content):
+    """Record an edit in edit_history and trim to 50 entries per document."""
+    wc_before = len(old_content.split()) if old_content else 0
+    wc_after = len(new_content.split()) if new_content else 0
+    delta = wc_after - wc_before
+    if delta >= 0:
+        summary = f'+{delta} words'
+    else:
+        summary = f'{delta} words'
+    db = get_db()
+    db.execute(
+        """INSERT INTO edit_history (company_slug, document, source, word_count_before, word_count_after, summary)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (slug, doc_id, source, wc_before, wc_after, summary),
+    )
+    db.execute(
+        """DELETE FROM edit_history WHERE id NOT IN (
+               SELECT id FROM edit_history WHERE company_slug=? AND document=?
+               ORDER BY created_at DESC LIMIT 50
+           ) AND company_slug=? AND document=?""",
+        (slug, doc_id, slug, doc_id),
+    )
+    db.commit()
+    db.close()
 
 # =============================================================================
 # Company & document discovery
@@ -446,6 +532,77 @@ def api_companies():
 # Routes — Documents (read, save, block-edit)
 # =============================================================================
 
+@app.route('/api/document/<slug>/<path:doc>/history')
+def api_document_history(slug, doc):
+    """Recent edit history for a document."""
+    _require_company(slug)
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM edit_history WHERE company_slug=? AND document=? ORDER BY created_at DESC LIMIT 20",
+        (slug, doc),
+    ).fetchall()
+    db.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/document/<slug>/<path:doc>/versions')
+def api_document_versions(slug, doc):
+    """List backup versions of a document."""
+    _require_company(slug)
+    doc_safe = doc.replace('/', '__')
+    prefix = f'{slug}__{doc_safe}__'
+    versions = []
+    for fname in sorted(os.listdir(BACKUP_DIR), reverse=True):
+        if fname.startswith(prefix):
+            fpath = os.path.join(BACKUP_DIR, fname)
+            versions.append({
+                'filename': fname,
+                'size': os.path.getsize(fpath),
+                'modified': os.path.getmtime(fpath),
+            })
+    return jsonify(versions[:30])
+
+
+@app.route('/api/document/<slug>/<path:doc>/restore', methods=['POST'])
+def api_document_restore(slug, doc):
+    """Restore a document from a backup version."""
+    _require_company(slug)
+    filename = request.json.get('filename', '')
+    if not filename or '/' in filename or '..' in filename or '\\' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+    backup_path = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(backup_path):
+        return jsonify({'error': 'Backup not found'}), 404
+    # Resolve document filepath
+    filepath = os.path.join(_company_dir(slug), f'{doc}.md')
+    if not os.path.exists(filepath):
+        abort(404)
+    # Read old content, backup current, restore from backup
+    with open(filepath) as f:
+        old_content = f.read()
+    _backup(filepath, slug, doc.replace('/', '__'))
+    with open(backup_path) as f:
+        restored = f.read()
+    with open(filepath, 'w') as f:
+        f.write(restored)
+    _log_edit(slug, doc, 'restore', old_content, restored)
+    html, blocks = render_md_with_paragraphs(restored)
+    return jsonify({'html': html, 'raw': restored, 'blocks': blocks})
+
+
+@app.route('/api/document/<slug>/<path:doc>/check')
+def api_document_check(slug, doc):
+    """Check if a document has been modified externally."""
+    _require_company(slug)
+    filepath = os.path.join(_company_dir(slug), f'{doc}.md')
+    if not os.path.exists(filepath):
+        abort(404)
+    mtime = os.path.getmtime(filepath)
+    mtime_key = f'{slug}/{doc}'
+    external_edit = (mtime_key in _served_mtimes and mtime > _served_mtimes[mtime_key])
+    return jsonify({'mtime': mtime, 'external_edit': external_edit})
+
+
 @app.route('/api/document/<slug>/<doc_id>')
 def api_document(slug, doc_id):
     """Render a markdown document as annotatable HTML blocks."""
@@ -455,8 +612,12 @@ def api_document(slug, doc_id):
         abort(404)
     with open(filepath) as f:
         raw = f.read()
+    mtime = os.path.getmtime(filepath)
+    mtime_key = f'{slug}/{doc_id}'
+    external_edit = (mtime_key in _served_mtimes and mtime > _served_mtimes[mtime_key])
+    _served_mtimes[mtime_key] = mtime
     html, blocks = render_md_with_paragraphs(raw)
-    return jsonify({'html': html, 'raw': raw, 'blocks': blocks})
+    return jsonify({'html': html, 'raw': raw, 'blocks': blocks, 'external_edit': external_edit})
 
 
 @app.route('/api/document/<slug>/constellation/<field_id>')
@@ -468,10 +629,15 @@ def api_constellation_document(slug, field_id):
         abort(404)
     with open(filepath) as f:
         raw = f.read()
+    mtime = os.path.getmtime(filepath)
+    mtime_key = f'{slug}/constellation/{field_id}'
+    external_edit = (mtime_key in _served_mtimes and mtime > _served_mtimes[mtime_key])
+    _served_mtimes[mtime_key] = mtime
     html, blocks = render_md_with_paragraphs(raw)
     return jsonify({
         'html': html, 'raw': raw, 'blocks': blocks,
         'field_config': CONSTELLATION_FIELDS.get(field_id, {}),
+        'external_edit': external_edit,
     })
 
 
@@ -485,9 +651,12 @@ def api_save_document(slug, doc_id):
     content = request.json.get('content', '')
     if not content.strip():
         return jsonify({'error': 'Empty content'}), 400
+    with open(filepath) as f:
+        old_content = f.read()
     _backup(filepath, slug, doc_id)
     with open(filepath, 'w') as f:
         f.write(content)
+    _log_edit(slug, doc_id, 'browser', old_content, content)
     html, blocks = render_md_with_paragraphs(content)
     return jsonify({'html': html, 'raw': content, 'blocks': blocks})
 
@@ -500,9 +669,12 @@ def api_save_constellation_document(slug, field_id):
     if not os.path.exists(filepath):
         abort(404)
     content = request.json.get('content', '')
+    with open(filepath) as f:
+        old_content = f.read()
     _backup(filepath, slug, f'constellation__{field_id}')
     with open(filepath, 'w') as f:
         f.write(content)
+    _log_edit(slug, f'constellation/{field_id}', 'browser', old_content, content)
     html, blocks = render_md_with_paragraphs(content)
     return jsonify({
         'html': html, 'raw': content, 'blocks': blocks,
@@ -537,6 +709,7 @@ def api_save_block(slug, doc_id, block_idx):
     _backup(filepath, slug, doc_id)
     with open(filepath, 'w') as f:
         f.write(new_raw)
+    _log_edit(slug, doc_id, 'browser', raw, new_raw)
     html, new_blocks = render_md_with_paragraphs(new_raw)
     return jsonify({'html': html, 'raw': new_raw, 'blocks': new_blocks})
 
@@ -582,9 +755,12 @@ def api_resume_html_put(slug):
     if not html_content.strip():
         return jsonify({'error': 'Empty content'}), 400
     filepath = os.path.join(d, fname)
+    with open(filepath) as f:
+        old_html = f.read()
     _backup(filepath, slug, 'resume')
     with open(filepath, 'w') as f:
         f.write(html_content)
+    _log_edit(slug, 'resume', 'browser', old_html, html_content)
     return jsonify({'saved': True, 'filename': fname})
 
 
@@ -914,6 +1090,25 @@ def api_export_notes():
         'count': len(rows),
         'notes': [dict(r) for r in rows],
     })
+
+# =============================================================================
+# Routes — WebSocket
+# =============================================================================
+
+@sock.route('/api/ws')
+def ws_watch(ws):
+    """WebSocket endpoint for live file-change notifications."""
+    _ws_clients.append(ws)
+    try:
+        while True:
+            ws.receive()
+    except Exception:
+        pass
+    finally:
+        try:
+            _ws_clients.remove(ws)
+        except ValueError:
+            pass
 
 # =============================================================================
 # Entry point
