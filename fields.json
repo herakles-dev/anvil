@@ -58,34 +58,34 @@
   },
   "cheatsheet": {
     "why_interested": {
-      "what_to_hit": ["Personal journey that led you here", "A specific turning point or moment", "The gap you want to fill"],
-      "evidence_to_cite": [],
-      "tips": ["Lead with a specific moment, not abstract motivation", "Name the gap you want to fill"]
+      "what_to_hit": ["Personal journey from engineering to research", "The DataForge experience that revealed gaps in ML tooling", "Acme Corp's specific research on data quality and model evaluation"],
+      "evidence_to_cite": ["evidence/career-profile.md (Narrative Arc section)", "evidence/project-portfolio.md (DataForge — relevance)", "evidence/platform-stats.md (Professional)"],
+      "tips": ["Lead with the moment building DataForge when you realized better tooling needs research behind it", "Name Acme Corp's published work on evaluation frameworks — show you've done homework"]
     },
     "relevant_background": {
-      "what_to_hit": ["Concrete projects with measurable outcomes", "Technical depth in the relevant domain", "Breadth across related areas"],
-      "evidence_to_cite": [],
-      "tips": ["Numbers are your friend here", "Show breadth AND depth"]
+      "what_to_hit": ["6 years spanning full-stack, data, and ML infrastructure", "DataForge: 32K LOC production pipeline used by 3 teams", "Sentinel: real-time anomaly detection serving 2M events/day"],
+      "evidence_to_cite": ["evidence/platform-stats.md (DataForge section)", "evidence/platform-stats.md (Sentinel section)", "evidence/project-portfolio.md (all projects)"],
+      "tips": ["Lead with DataForge scale numbers — 32K LOC, 3 teams, 2.1M records/day", "Show the progression: built systems → saw gaps → want to research the gaps"]
     },
     "excited_area": {
-      "what_to_hit": ["One specific area (go deep, not wide)", "Why this area matters to you personally", "What you would work on first"],
-      "evidence_to_cite": [],
-      "tips": ["Pick ONE area and go deep", "Reference a specific paper or finding"]
+      "what_to_hit": ["ML data quality and evaluation infrastructure", "Why current tools fail at scale (from DataForge experience)", "Specific research direction: automated data quality metrics"],
+      "evidence_to_cite": ["evidence/project-portfolio.md (DataForge)", "evidence/career-profile.md (Narrative Arc)"],
+      "tips": ["Pick ML infrastructure quality — it's your strongest angle", "Reference a specific pain point from DataForge that needs research, not just engineering"]
     },
     "code_samples": {
-      "what_to_hit": ["What each sample demonstrates (not just what it does)", "Quality indicators (tests, documentation, architecture)", "Relevance to the role"],
-      "evidence_to_cite": [],
-      "tips": ["Describe what each sample DEMONSTRATES, not just what it does"]
+      "what_to_hit": ["DataForge pipeline engine (Rust): demonstrates systems thinking and performance optimization", "Sentinel anomaly detector (Python): demonstrates ML engineering and real-time inference", "scikit-learn PR: demonstrates open-source collaboration and research-grade code"],
+      "evidence_to_cite": ["evidence/project-portfolio.md (DataForge — code samples)", "evidence/project-portfolio.md (Sentinel — code samples)", "evidence/platform-stats.md (Open Source)"],
+      "tips": ["For each sample: what it does, what SKILL it demonstrates, why it matters for research engineering", "The scikit-learn PR shows you can work in a research-oriented codebase"]
     },
     "commitment": {
-      "what_to_hit": ["Clear availability statement", "Any constraints transparently disclosed"],
-      "evidence_to_cite": [],
-      "tips": ["Brief and transparent", "Show you can commit fully"]
+      "what_to_hit": ["Full-time availability starting September 2026", "Current role transition plan", "No competing obligations"],
+      "evidence_to_cite": ["evidence/career-profile.md (Career Arc — current role end date)"],
+      "tips": ["Brief and direct — state availability, confirm full-time commitment, mention transition timeline"]
     },
     "anything_else": {
-      "what_to_hit": ["What makes you unique", "Anything the form didn't ask about", "Your unconventional angle"],
-      "evidence_to_cite": [],
-      "tips": ["This is your wildcard — use it for what makes you unique"]
+      "what_to_hit": ["Open-source contributions to scikit-learn show research-community fit", "Self-taught Rust for DataForge performance layer — demonstrates learning drive", "Blog posts on ML infrastructure gaps bridge engineering and research communication"],
+      "evidence_to_cite": ["evidence/project-portfolio.md (scikit-learn, DataForge Rust layer)", "evidence/platform-stats.md (Open Source section)"],
+      "tips": ["Use this to show the researcher mindset hiding inside the engineer", "The blog posts are strong evidence you can communicate technical ideas clearly"]
     }
   }
 }

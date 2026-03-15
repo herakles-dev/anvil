@@ -1,2 +1,1 @@
-
-
+A couple things that don't fit neatly elsewhere. My scikit-learn contributions happened outside work hours and weren't required by any job — I did them because the review process there is genuinely rigorous and I wanted to understand what it felt like to get code reviewed by people who care a lot about correctness and API stability. That experience changed how I write code at work. Also, my path into ML infrastructure was roundabout — I started as a generalist web dev and moved toward data systems by following the problems that seemed most important, not by following a planned career track. I think that makes me somewhat harder to categorize but probably a more useful collaborator for interdisciplinary research work.

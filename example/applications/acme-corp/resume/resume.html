@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Resume</title>
+<title>Jordan Chen — Resume</title>
 <style>
   body { font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
   h1 { font-size: 24px; margin-bottom: 4px; }
@@ -14,37 +14,104 @@
   .entry-date { color: #888; font-size: 14px; }
   ul { margin: 4px 0 0 20px; }
   li { margin: 2px 0; font-size: 14px; }
+  .summary { font-size: 14px; margin-bottom: 20px; color: #444; }
+  .skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; font-size: 14px; }
+  .skills-category { font-weight: 600; }
 </style>
 </head>
 <body>
-  <h1>[Your Name]</h1>
-  <div class="contact">[email] | [location] | [github/portfolio]</div>
+  <h1>Jordan Chen</h1>
+  <div class="contact">jordan.chen@email.com | San Francisco, CA | github.com/jordanchen</div>
+
+  <div class="summary">
+    Senior software engineer with 6 years of experience building data infrastructure and ML systems in production. Currently leading data platform engineering at Meridian Labs, where I own two open-source projects — DataForge (32K LOC pipeline framework) and Sentinel (18K LOC anomaly detection). Seeking a Research Engineering Fellow role where engineering rigor and research questions about reliable AI systems overlap directly.
+  </div>
 
   <h2>Experience</h2>
+
   <div class="entry">
     <div class="entry-header">
-      <span class="entry-title">[Role] — [Company]</span>
-      <span class="entry-date">[Date Range]</span>
+      <span class="entry-title">Senior Software Engineer — Meridian Labs</span>
+      <span class="entry-date">2023 – Present</span>
     </div>
     <ul>
-      <li>[Achievement with measurable outcome]</li>
-      <li>[Achievement with measurable outcome]</li>
+      <li>Designed and built DataForge, a production data pipeline framework (32K LOC, Python/Rust) processing ~2M records/day with sub-50ms p99 latency; adopted by 3 internal research teams within 6 months</li>
+      <li>Built Sentinel, a real-time anomaly detection system (18K LOC, Python/Go) monitoring model behavior at 50K events/sec; detected a silent production data corruption issue missed by all existing monitoring for 6 weeks</li>
+      <li>Designed and maintain the nightly model evaluation harness covering regression testing across the full production model suite; reduced evaluation cycle time from 4 hours to 45 minutes via parallelization</li>
+      <li>Introduced per-slice metric tracking to model evaluation, catching distribution shift on specific input types that aggregate scores masked</li>
+      <li>Mentored 2 junior engineers; led weekly data infrastructure office hours across 3 research teams</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <div class="entry-header">
+      <span class="entry-title">Data Engineer — Nexus Analytics</span>
+      <span class="entry-date">2021 – 2023</span>
+    </div>
+    <ul>
+      <li>Owned end-to-end data pipeline infrastructure serving 12 customer-facing analytics products; on-call primary for all pipeline incidents</li>
+      <li>Reduced median pipeline failure recovery time from 3.2 hours to 22 minutes by rebuilding alerting and runbook system</li>
+      <li>Migrated 40TB of historical data from legacy warehouse to PostgreSQL + columnar storage, reducing query costs by 60%</li>
+      <li>Built data quality validation layer that caught schema drift within one pipeline run rather than downstream in product dashboards</li>
+      <li>Contributed 4 pull requests to scikit-learn (bug fixes, performance improvement, documentation); all merged after maintainer review</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <div class="entry-header">
+      <span class="entry-title">Junior Software Developer — Initech</span>
+      <span class="entry-date">2020 – 2021</span>
+    </div>
+    <ul>
+      <li>Built and maintained internal reporting dashboards and ETL pipelines for operations team</li>
+      <li>Implemented automated data reconciliation jobs that eliminated a weekly 6-hour manual audit process</li>
+      <li>Introduced type annotations and pytest coverage to previously untested codebase; coverage went from 0% to 74% in 4 months</li>
     </ul>
   </div>
 
   <h2>Projects</h2>
+
   <div class="entry">
     <div class="entry-header">
-      <span class="entry-title">[Project Name]</span>
+      <span class="entry-title">DataForge — Data Pipeline Framework</span>
+      <span class="entry-date">2023 – Present</span>
     </div>
     <ul>
-      <li>[What it does, tech stack, key metrics]</li>
+      <li>32,000 LOC (Python + Rust via PyO3); production at Meridian Labs, 2M records/day, p99 &lt;50ms</li>
+      <li>Schema validation engine, lineage graph, pluggable transformation layer; zero-config adoption for new pipelines</li>
+      <li>Rust batch processing layer handles throughput-sensitive paths; Python API remains ergonomic for researchers</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <div class="entry-header">
+      <span class="entry-title">Sentinel — Real-Time Anomaly Detection</span>
+      <span class="entry-date">2024 – Present</span>
+    </div>
+    <ul>
+      <li>18,000 LOC (Python + Go); monitors ML model I/O streams at 50K events/sec, mean time-to-alert &lt;90 seconds</li>
+      <li>Per-slice statistical deviation detection using PyTorch baseline distribution modeling</li>
+      <li>Go ingestion daemon + Redis Streams; Grafana integration with configurable webhook alerting</li>
     </ul>
   </div>
 
   <h2>Education</h2>
+
   <div class="entry">
-    <span class="entry-title">[Degree] — [School]</span>
+    <div class="entry-header">
+      <span class="entry-title">B.S. Computer Science — University of California, Berkeley</span>
+      <span class="entry-date">2020</span>
+    </div>
   </div>
+
+  <h2>Skills</h2>
+
+  <div class="skills-grid">
+    <div><span class="skills-category">Languages:</span> Python, Rust, Go, TypeScript</div>
+    <div><span class="skills-category">ML/Data:</span> PyTorch, scikit-learn, NumPy, pandas</div>
+    <div><span class="skills-category">Infrastructure:</span> Kubernetes, Docker, Redis, PostgreSQL</div>
+    <div><span class="skills-category">Tools:</span> git, GitHub Actions, Grafana, pytest</div>
+  </div>
+
 </body>
 </html>

@@ -1,2 +1,1 @@
-
-
+Two main ones I'd point to. First is the DataForge pipeline engine — specifically the schema validation layer and the Rust batch processor. The interesting design decision there was making validation fast enough (sub-1ms per batch) that there's never a reason to skip it. The Rust layer handles that. Second is Sentinel's anomaly detector — the per-slice deviation logic in Python. Most monitoring systems only track aggregate metrics; Sentinel tracks distributions per input slice so you catch the case where overall accuracy holds but the model quietly degrades on a specific subgroup. Both repos are public on my GitHub.

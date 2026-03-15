@@ -30,6 +30,7 @@ anvil/
 ├── Dockerfile              # Python 3.11 + Chromium
 ├── requirements.txt        # Flask, markdown, gunicorn, flask-sock, watchdog
 └── example/                # Application workspace
+    ├── pipeline.md         # Multi-company pipeline tracker
     ├── applications/       # One subdirectory per company/program
     │   └── {company-slug}/
     │       ├── meta.json           # Company metadata
@@ -44,6 +45,7 @@ anvil/
     └── evidence/           # Research/evidence files for the sidebar
         ├── platform-stats.md       # Quantifiable claims table
         ├── project-portfolio.md    # Project details + metrics
+        ├── career-profile.md       # Professional narrative + arc
         └── ...
 ```
 
@@ -58,21 +60,72 @@ docker compose up -d
 
 ## Full Setup Guide for LLM Assistants
 
-**This section is for you, the LLM.** When a user asks you to set up Anvil, follow this protocol. Don't just create skeleton files — interview the user and build real, substantive content.
+**This section is for you, the LLM.** When a user asks you to set up Anvil, follow this protocol phase by phase. Don't just create skeleton files — interview the user, research their targets, and build real, substantive content.
 
-### Phase 1: Interview the User
+### Phase 0: Environment & Capability Check
 
-Ask these questions conversationally (skip any the user already answered). Don't dump all questions at once — group them naturally.
+Before doing anything, verify the environment and assess your own tool capabilities.
+
+**Prerequisites:**
+```bash
+# Check Docker is running
+docker info > /dev/null 2>&1 && echo "Docker: OK" || echo "Docker: NOT RUNNING"
+
+# Check disk space (need ~500MB for image + data)
+df -h . | tail -1
+
+# Check port 8135 is available
+lsof -i :8135 2>/dev/null && echo "Port 8135: IN USE" || echo "Port 8135: available"
+```
+
+**Clone and prepare** (skip if already cloned):
+```bash
+git clone https://github.com/herakles-dev/anvil.git
+cd anvil
+```
+
+**Tool capability self-assessment** — check what you can do and adapt accordingly:
+
+| Capability | How to check | If available | If unavailable |
+|------------|-------------|--------------|----------------|
+| Web search | Try `WebSearch` tool | Research companies, find job postings, look up salary data | Ask user to provide company info, job posting text |
+| Web fetch | Try `WebFetch` tool | Read application portals, parse form fields, fetch job descriptions | Ask user to paste portal content or describe fields |
+| Gmail MCP | Check for `mcp__gmail__*` tools | Draft and send emails with attachments | Use SMTP config in docker-compose.yml, or manual export |
+| File read | Always available | Read resumes (PDF, HTML, text) | — |
+| PDF read | Try reading a `.pdf` file | Import PDF resumes directly | Ask user to paste resume content or provide HTML/text version |
+
+**Graceful degradation:** Every feature works without web tools — it just requires more manual input from the user. Tell the user upfront what you can and can't do:
+
+> "I can read files, edit code, and manage the container. [I can / I can't] search the web or fetch URLs. For company research, [I'll look it up / you'll need to tell me about the company and paste any relevant job posting text]."
+
+### Phase 1: Import & Interview
+
+Start by gathering existing materials, then fill gaps with an interview.
+
+**Step 1: Import existing materials**
+
+Ask: "Do you have an existing resume? (file path, URL, or paste it)"
+- If yes: read it in whatever format (PDF, HTML, .txt, .docx text, pasted content)
+- Extract: work history with dates/titles, projects with metrics, education, skills, publications
+- Use as seed data for all evidence files — don't make the user repeat what's already written
+
+Ask: "Do you have a GitHub or portfolio URL?"
+- If yes and you can fetch URLs: scan their profile for repos, stars, languages, recent activity
+- If yes but you can't fetch: ask them to list their top 3-5 repos with descriptions
+- Auto-populate project-portfolio.md entries from discovered repos
+
+**Step 2: Interview for gaps**
+
+Ask these questions conversationally — skip anything already covered by imported materials. Don't dump all questions at once — group them naturally.
 
 **About them (for evidence base + resume):**
 1. What's your full name and contact info? (email, location, GitHub/portfolio URL, LinkedIn)
 2. What's your professional background in 2-3 sentences?
 3. What are your top 3-5 projects? For each: name, what it does, tech stack, key metrics (LOC, users, tests, performance numbers, scale).
-4. Do you have an existing resume? If yes: where is it on disk? (You'll read it and convert to HTML.) If they can paste content, that works too.
-5. What quantifiable claims can you make? (years of experience, languages known, systems built, users served, contributions made, etc.)
-6. Education? (degrees, schools, relevant coursework, certifications)
-7. Publications, talks, blog posts, or open-source contributions?
-8. Languages spoken? Awards or recognition?
+4. What quantifiable claims can you make? (years of experience, languages known, systems built, users served, contributions made, etc.)
+5. Education? (degrees, schools, relevant coursework, certifications)
+6. Publications, talks, blog posts, or open-source contributions?
+7. Languages spoken? Awards or recognition?
 
 **About the application (for company directory + form fields):**
 1. What company/program are you applying to? (If multiple, handle one at a time — evidence is shared.)
@@ -83,13 +136,51 @@ Ask these questions conversationally (skip any the user already answered). Don't
 6. What makes you specifically suited for this role?
 7. What's your narrative arc — why are you applying to THIS, NOW? (The story that connects past → present → this opportunity.)
 
-### Phase 2: Build the Evidence Base
+### Phase 2: Opportunity Research
 
-Create `example/evidence/` files from the user's answers. These populate the searchable evidence sidebar (Ctrl+E in the UI). The more evidence you build here, the more useful the sidebar is during drafting.
+If the user provides a target company/program, research it thoroughly. If they say "help me figure out where to apply," help them explore options.
 
-**If the user has an existing resume on disk**, read it first — it's a goldmine of structured data (dates, titles, achievements, metrics) that seeds everything else.
+**If the user provides a job posting URL:**
+1. Fetch and parse the posting (or ask the user to paste it if you can't fetch):
+   - Required qualifications, preferred qualifications, responsibilities
+   - Keywords and phrases that appear repeatedly
+   - Team/department context
+   - Compensation if listed
+2. Gap analysis — map the user's evidence to each requirement:
+   ```
+   STRONG FIT:  Requirement X → user has Project Y (evidence: platform-stats.md)
+   PARTIAL FIT: Requirement Z → user has related experience in Project W
+   GAP:         Requirement Q → no direct evidence (suggest how to address)
+   ```
+3. Identify the top 3-5 keywords/themes to weave into all application materials
 
-**If the user has a GitHub profile**, consider scanning their pinned repos for project metrics (stars, forks, LOC, languages).
+**Company research** (via web search if available, otherwise ask the user):
+- Mission, size, funding stage, and recent news
+- Tech stack and engineering culture (from blog posts, talks, open-source repos)
+- What the team that's hiring works on specifically
+- Glassdoor/Blind ratings and interview process (if available)
+- Salary data from levels.fyi or similar (if available)
+
+**Application portal analysis:**
+- Identify portal type: online form with fields, document upload, email submission, or hybrid
+- If online form: extract field labels, word/character limits, required vs optional fields
+- Auto-configure `fields.json` from the discovered fields (Phase 5)
+- Note any required attachments (resume, transcripts, references, etc.)
+
+**Build meta.json** with researched data — see Phase 4 for format.
+
+**Generate a match score** and share it with the user:
+> "Based on what I've gathered, you're a strong fit for this role. Your DataForge project maps directly to their ML infrastructure focus (STRONG), your anomaly detection work aligns with their evaluation research (STRONG), and while you don't have publications, your open-source contributions demonstrate research-community engagement (PARTIAL). I'd estimate 75-80% match."
+
+**If the user says "help me find opportunities":**
+1. Ask: target role type, preferred company size, location/remote preference, salary expectations
+2. If you can web search: find 5-10 matching openings
+3. Present each with: company name, role, deadline, estimated fit based on their evidence
+4. Let them pick which to pursue — then run the full research protocol for each
+
+### Phase 3: Build the Evidence Base
+
+Create `example/evidence/` files from imported materials + interview answers. These populate the searchable evidence sidebar (Ctrl+E in the UI). The more evidence you build here, the more useful the sidebar is during drafting.
 
 **Files to create:**
 
@@ -159,9 +250,9 @@ Create one section per project. Include ALL projects from the interview, not jus
 - `publications-and-talks.md` — papers, conference talks, blog posts
 - `domain-research.md` — if they have domain-specific knowledge (e.g., security research, ML papers read, industry analysis)
 
-### Phase 3: Build the Company Directory
+### Phase 4: Build the Company Directory
 
-Create `example/applications/{slug}/` with **real content** — not templates with `[placeholder]` brackets. Use the evidence base to write actual drafts.
+Create `example/applications/{slug}/` with **real content** — not templates with `[placeholder]` brackets. Use the evidence base and research from Phase 2 to write actual drafts.
 
 **`meta.json`:**
 ```json
@@ -194,7 +285,7 @@ Create `example/applications/{slug}/` with **real content** — not templates wi
 - Include specific metrics from the evidence base
 - Explain WHY each project matters for THIS company
 
-### Phase 4: Configure Form Fields (if applicable)
+### Phase 5: Configure Form Fields (if applicable)
 
 If the application portal has specific form fields:
 
@@ -229,7 +320,7 @@ If the application portal has specific form fields:
    ```
    Think: "What from this person's background is the STRONGEST answer to this question?" and map it explicitly.
 
-### Phase 5: Build the Resume
+### Phase 6: Build the Resume
 
 Create `example/applications/{slug}/resume/resume.html`.
 
@@ -276,7 +367,7 @@ Create `example/applications/{slug}/resume/resume.html`.
 </html>
 ```
 
-### Phase 6: Docker & Launch
+### Phase 7: Docker & Launch
 
 1. **Remove the example company** if the user doesn't want it:
    ```bash
@@ -323,7 +414,7 @@ Create `example/applications/{slug}/resume/resume.html`.
 
 5. Tell the user: **"Open http://localhost:8135 — your workspace is ready. Select [company] to start writing. The constellation fields are empty for you to first-draft in the browser. When you're done with a draft, mark it as 'human_written' and come back to the CLI for refinement."**
 
-### Phase 7: Ongoing Assistance
+### Phase 8: Ongoing Writing Assistance
 
 After setup, the user will draft in the browser and come back to the CLI for help:
 
@@ -345,7 +436,7 @@ curl -s http://localhost:8135/api/fellowship/both/progress | python3 -m json.too
 ```
 
 **"Add another company":**
-Repeat Phases 3-6 for the new company. Evidence files in `example/evidence/` are shared across all companies — only create company-specific materials in the company directory.
+Repeat Phases 2-7 for the new company. Evidence files in `example/evidence/` are shared across all companies — only create company-specific materials in the company directory.
 
 **"Help me tailor my cover letter for [company]":**
 Read the evidence base + the company's meta.json, then write/refine the cover letter with specific connections to that company's mission and role requirements.
@@ -356,6 +447,174 @@ for f in example/applications/{slug}/constellation/*.md; do
   wc -w "$f"
 done
 ```
+
+### Phase 9: Pipeline Management
+
+When managing multiple applications, use `example/pipeline.md` as the central tracker.
+
+**Pipeline file format:**
+
+```markdown
+# Application Pipeline
+
+## Active Applications
+
+| Company | Role | Status | Deadline | Priority | Next Action |
+|---------|------|--------|----------|----------|-------------|
+| Acme Corp | Research Fellow | DRAFTING | 2026-07-01 | HIGH | Refine cover letter |
+| Other Co | ML Engineer | RESEARCHING | 2026-08-15 | MEDIUM | Research portal fields |
+
+## Status Legend
+
+| Status | Meaning |
+|--------|---------|
+| RESEARCHING | Gathering info about the company and role |
+| PREPARING | Building evidence base and company directory |
+| DRAFTING | Writing application materials |
+| REVIEWING | Refining drafts, processing review notes |
+| SUBMITTED | Application sent — awaiting response |
+| INTERVIEWING | In interview process |
+| DECIDED | Final decision received |
+
+## Decision Log
+
+| Date | Company | Decision | Notes |
+|------|---------|----------|-------|
+```
+
+**Priority scoring** — when asked "what should I work on?", rank by:
+1. **Deadline proximity** — anything within 7 days is urgent
+2. **Fit score** — higher-fit opportunities deserve more polish
+3. **Effort remaining** — fewer incomplete fields = closer to done
+
+**Daily brief protocol** (when the user asks "what's next?" or "what should I work on?"):
+1. Check `pipeline.md` for deadlines within 7 days → **warn immediately**
+2. Check field statuses across all companies for `human_written` fields → offer refinement
+3. Check for pending review notes → process them
+4. Check for incomplete constellation fields → suggest which to draft next
+5. Show overall pipeline summary:
+   ```bash
+   # Quick pipeline status
+   echo "=== Pipeline Status ==="
+   cat example/pipeline.md | head -20
+
+   # Per-company progress
+   for company in example/applications/*/; do
+     slug=$(basename "$company")
+     echo "--- $slug ---"
+     curl -s "http://localhost:8135/api/fellowship/both/progress" 2>/dev/null || echo "  (container not running)"
+   done
+   ```
+
+**Adding a new company** to the pipeline:
+1. Run Phases 2-7 for the new company (evidence is shared)
+2. Add a row to `pipeline.md`
+3. Add an entry to the Decision Log
+
+### Phase 10: Submission & Follow-Up
+
+When the user is ready to submit an application:
+
+**Pre-submission checklist:**
+```
+[ ] All constellation fields at "final" status
+[ ] Word counts within limits for every field
+[ ] Cover letter tailored and proofread
+[ ] Resume current and formatted correctly
+[ ] meta.json deadline has not passed
+[ ] Export preview reviewed (Ctrl+Shift+X in the browser)
+[ ] All review notes processed (none pending)
+```
+
+Run the checklist programmatically:
+```bash
+slug="company-slug"
+
+# Check field statuses
+echo "=== Field Statuses ==="
+curl -s "http://localhost:8135/api/fellowship/both/progress" | python3 -m json.tool
+
+# Check word counts against limits
+echo "=== Word Counts ==="
+for f in example/applications/$slug/constellation/*.md; do
+  field=$(basename "$f" .md)
+  words=$(wc -w < "$f")
+  echo "$field: $words words"
+done
+
+# Check for pending notes
+echo "=== Pending Notes ==="
+curl -s "http://localhost:8135/api/notes/export?company=$slug" | python3 -c "
+import json,sys
+notes=json.load(sys.stdin)
+if notes: print(f'{len(notes)} notes still pending')
+else: print('All clear — no pending notes')
+"
+
+# Check deadline
+echo "=== Deadline Check ==="
+python3 -c "
+import json, datetime
+meta=json.load(open('example/applications/$slug/meta.json'))
+deadline=datetime.date.fromisoformat(meta['deadline'])
+today=datetime.date.today()
+days=(deadline-today).days
+print(f'Deadline: {meta[\"deadline\"]} ({days} days away)')
+if days < 0: print('WARNING: DEADLINE HAS PASSED')
+elif days < 3: print('WARNING: Less than 3 days remaining')
+elif days < 7: print('NOTE: Less than 1 week remaining')
+"
+```
+
+**Export for portal submission:**
+
+Option 1 — Copy-paste from export modal:
+1. Open the browser, select the company
+2. Press Ctrl+Shift+X to open the export modal
+3. Copy each field's text and paste into the application portal
+
+Option 2 — API export:
+```bash
+# Get all fields as plain text for copy-paste
+curl -s "http://localhost:8135/api/export/$slug/both/plain-text" | python3 -m json.tool
+```
+
+Option 3 — Email submission (if SMTP configured):
+```bash
+# Send via the API
+curl -X POST "http://localhost:8135/api/export/$slug/both/email"
+```
+
+Option 4 — Gmail MCP (if available):
+```
+# Draft an email with the application materials
+1. Export plain text via API
+2. Use mcp__gmail__draft_email to create the draft
+3. Attach resume PDF: curl -o resume.pdf "http://localhost:8135/api/resume/$slug/pdf"
+4. User reviews draft in Gmail → sends manually
+```
+
+**Post-submission:**
+1. Update `pipeline.md`: change status to `SUBMITTED`, update Next Action
+2. Update `meta.json`: set `"status": "SUBMITTED"`
+3. Add entry to Decision Log with submission date
+
+**Follow-up protocol:**
+- If no response after 1-2 weeks: draft a polite follow-up email
+  ```
+  Subject: Following Up — [Role Title] Application
+
+  Dear [Team/Name],
+
+  I submitted my application for the [Role] position on [date] and wanted to
+  confirm it was received. I remain very enthusiastic about the opportunity
+  and am happy to provide any additional information.
+
+  Best regards,
+  [Name]
+  ```
+- If interview scheduled: update pipeline status to `INTERVIEWING`, review talking_points.md
+- If accepted/rejected: update pipeline status to `DECIDED`, log in Decision Log
 
 ### Live Collaboration Protocol
 
@@ -382,6 +641,28 @@ The WebSocket connection to `/api/ws` sends JSON messages:
 ```json
 {"type": "file_changed", "slug": "acme-corp", "document": "cover_letter"}
 ```
+
+## Pipeline File Format
+
+The pipeline tracker lives at `example/pipeline.md` and is the central dashboard for multi-company applications.
+
+**Required sections:**
+
+1. **Active Applications table** — one row per company with: Company, Role, Status, Deadline, Priority, Next Action
+2. **Status Legend** — defines the 7 statuses (RESEARCHING → DECIDED)
+3. **Decision Log** — append-only log of key decisions with dates
+
+**Statuses flow in order:**
+```
+RESEARCHING → PREPARING → DRAFTING → REVIEWING → SUBMITTED → INTERVIEWING → DECIDED
+```
+
+**Priority values:** HIGH, MEDIUM, LOW — based on deadline proximity, fit score, and strategic importance.
+
+**Update rules:**
+- Update pipeline.md whenever a status changes
+- Add to Decision Log whenever you start or complete a major milestone
+- The LLM should read pipeline.md at the start of every session to understand current state
 
 ---
 

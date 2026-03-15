@@ -17,6 +17,7 @@ You draft in the browser with your evidence at your fingertips. Your LLM refines
 - **Status tracking** — `not_started → first_draft → human_written → ai_refined → final` per field
 - **Resume editor** — split-pane HTML editor with live preview + PDF export via headless Chromium
 - **Export** — copy-paste-ready text for application portals, or email to yourself
+- **Pipeline tracker** — manage multiple applications with deadlines and priority scoring
 - **CLI-friendly** — all data is plain markdown on disk + a REST API for automation
 - **Auto-backups** — every save creates a timestamped backup
 - **Live collaboration** — CLI edits appear instantly in the browser via WebSocket
@@ -25,6 +26,13 @@ You draft in the browser with your evidence at your fingertips. Your LLM refines
 - **Undo/Redo** — per-save undo stack with version restore (Ctrl+Z / Ctrl+Shift+Z)
 - **Version browser** — one-click restore from any backup
 - **Conflict protection** — external edit banner when you have unsaved changes
+
+## Prerequisites
+
+- **Docker** (with Compose v2) — [install guide](https://docs.docker.com/get-docker/)
+- **~500MB disk space** for the Docker image
+- **Port 8135** available (configurable in docker-compose.yml)
+- A CLI-based LLM (Claude Code, Cursor, Copilot CLI, etc.) — optional but recommended
 
 ## Quick Start
 
@@ -39,38 +47,46 @@ The example application (`acme-corp`) loads automatically so you can explore the
 
 ## Setting Up Your Own Applications
 
-### Option 1: Use your CLI-based LLM (recommended)
+### Option 1: One prompt, full lifecycle (recommended)
 
-Paste this prompt into Claude Code, Cursor, or any CLI-based LLM running in the `anvil/` directory. It will interview you and build everything out:
+Paste this into Claude Code, Cursor, or any CLI-based LLM. It will clone the repo, interview you, research your target companies, build your complete workspace, and then manage your pipeline from first draft through submission.
 
 ````
-I want to set up Anvil — the application writing forge. Here's what to do:
+I want to use Anvil to manage my job/fellowship/grant applications. Set everything up for me.
 
-1. Clone the repo and read the setup guide:
-   ```
-   git clone https://github.com/herakles-dev/anvil.git
-   cd anvil
-   ```
-2. Read CLAUDE.md (especially "Full Setup Guide for LLM Assistants") and follow the setup protocol.
-3. Interview me to gather what you need, then build out my complete workspace:
-   - Evidence base from my background and projects
-   - Company directories with real application materials
-   - Form fields configured for the specific portal I'm applying to
-   - Resume HTML built from my experience
-   - Cheat sheets with my actual evidence mapped to each field
-4. Start the container when ready:
-   ```
-   docker compose up -d --build
-   ```
+1. Read CLAUDE.md — it has the complete setup protocol. Follow it phase by phase.
+
+2. Before interviewing me, check what tools you have available:
+   - Can you search the web? (for researching companies and job postings)
+   - Can you fetch URLs? (for reading application portals)
+   - Can you send email? (Gmail MCP or SMTP — optional)
+   If you can't do something, just ask me to provide the info manually.
+
+3. Interview me to understand my background, then:
+   - Import my resume if I have one (any format — PDF, DOCX, HTML, or paste it)
+   - Scan my GitHub if I give you the URL
+   - Research the companies/programs I'm targeting
+   - Build my complete evidence base
+   - Create tailored materials for each application
+   - Configure the writing environment with my form fields
+   - Launch the container
+
+4. After setup, be my project manager:
+   - Track my pipeline across all applications
+   - Tell me what to work on when I ask "what's next?"
+   - Refine my drafts when I mark them ready in the browser
+   - Warn me about approaching deadlines
+   - Help me submit when materials are final
 
 Here's my starting context:
-- I'm applying to: [COMPANY/PROGRAM — or "multiple, let's discuss"]
-- My background: [2-3 sentences about your career/expertise]
-- My key projects: [list your top 3-5 projects]
+- I'm applying to: [COMPANY/PROGRAM — or "help me figure out where to apply"]
+- My background: [2-3 sentences]
+- My resume: [file path, or "I'll paste it", or "help me build one"]
+- My GitHub: [URL, or "skip"]
 - Deadline: [date, or "not sure yet"]
 ````
 
-The LLM will ask follow-up questions about your experience, research the application requirements, then build out your complete workspace — not just skeleton files.
+The LLM follows a 10-phase protocol (documented in `CLAUDE.md`) that covers environment setup, resume import, opportunity research, evidence building, form field configuration, resume generation, Docker launch, ongoing writing assistance, pipeline management, and submission/follow-up.
 
 ### Option 2: Manual setup
 
@@ -100,6 +116,7 @@ The LLM will ask follow-up questions about your experience, research the applica
    example/evidence/
    ├── platform-stats.md
    ├── project-portfolio.md
+   ├── career-profile.md
    └── research-notes.md
    ```
 
@@ -109,7 +126,12 @@ The LLM will ask follow-up questions about your experience, research the applica
    └── resume.html
    ```
 
-5. **Rebuild:**
+5. **Create a pipeline tracker** (optional — for managing multiple applications):
+   ```
+   example/pipeline.md
+   ```
+
+6. **Rebuild:**
    ```bash
    docker compose up -d --build
    ```
@@ -176,7 +198,7 @@ All form field configuration lives here — no code changes needed:
   "cheatsheet": {
     "your_field_id": {
       "what_to_hit": ["Key point 1", "Key point 2"],
-      "evidence_to_cite": ["evidence/file.md"],
+      "evidence_to_cite": ["evidence/file.md (section name)"],
       "tips": ["Writing tip"]
     }
   }
@@ -197,6 +219,10 @@ Per-company metadata shown in the UI:
   "apply_url": "https://example.com/apply"
 }
 ```
+
+### `pipeline.md`
+
+Central tracker for multi-company applications. See `CLAUDE.md` (Phase 9) for the full format and management protocol.
 
 ### Environment Variables
 

@@ -1,9 +1,9 @@
 {
   "company": "Acme Corp",
-  "role": "Research Fellow",
+  "role": "Research Engineering Fellow",
   "status": "PREPARING",
-  "salary_range": "",
+  "salary_range": "$145,000-$185,000",
   "deadline": "2026-07-01",
-  "apply_url": "https://example.com/apply",
-  "notes": ""
+  "apply_url": "https://acmecorp.ai/careers/research-fellow",
+  "notes": "12-month fellowship, starts September 2026. Focus areas: ML infrastructure, data quality, model evaluation."
 }

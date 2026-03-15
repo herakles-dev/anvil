@@ -1,0 +1,34 @@
+# Git
+.git
+.github
+.gitignore
+
+# Python artifacts
+__pycache__
+*.pyc
+.venv
+.pytest_cache
+.coverage
+htmlcov
+.benchmarks
+
+# Data (created at runtime)
+data/
+
+# Docs
+README.md
+CLAUDE.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+
+# Environment
+.env
+.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode
+.idea

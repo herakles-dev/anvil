@@ -1,2 +1,1 @@
-
-
+ML infrastructure and data quality, specifically the lineage and provenance side of it. Most tooling tells you whether data is clean right now, but very little tracks why a dataset looks the way it does — which transformation introduced a shift, which cleaning decision is causing a model to underperform on some input slice months later. DataForge has a basic lineage graph but I know it's not good enough. I'd like to work on that problem with people who are thinking about it from the research side, not just the engineering side.

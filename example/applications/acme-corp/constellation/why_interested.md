@@ -1,2 +1,1 @@
-
-
+I've been building data infrastructure for ML teams for a few years and kept running into the same gap — the research questions about whether a model is actually behaving reliably don't have great engineering answers yet. Acme Corp seems like one of the few places treating that as a real research problem rather than just an ops problem. The fellowship structure where engineers work directly on research projects, not just in support of them, is specifically what I'm looking for. I want to spend a year going deeper on evaluation and data quality in a place that thinks rigorously about it.

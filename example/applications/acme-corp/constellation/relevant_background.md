@@ -1,2 +1,1 @@
-
-
+I'm a senior engineer at Meridian Labs where I own the data platform for three research teams. I built DataForge, a pipeline framework (32K LOC, Python and Rust) that handles ingestion, schema validation, and lineage tracking for about 2 million records a day. I also built Sentinel, a real-time anomaly detection system that monitors production model behavior and caught a data corruption issue that had been skewing a model's outputs for six weeks before anyone noticed. Before Meridian I was a data engineer at Nexus Analytics. I also have four merged PRs in scikit-learn from my time there.

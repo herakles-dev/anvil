@@ -1,2 +1,1 @@
-
-
+Yes, fully available full-time starting September 2026. I'm currently wrapping up a project at Meridian Labs and have already discussed the transition timeline with my manager — a September start date works cleanly. The 12-month fellowship duration is what I'm looking for; I'm not treating this as a short detour, I'm looking to reorient my career toward research engineering for AI reliability and the fellowship is the right entry point for that.
